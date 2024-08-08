@@ -126,21 +126,47 @@ if __name__ == "__main__" :
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
     maindir = os.getcwd() + f'/NonRes{options.num}/'
 
+
     if "ZZ" in options.ver:
         o_name = 'ZZbbtt'; fancy_name = '$ZZ_{bb\\tau\\tau}$'
-        r_range_single = r_range_single_KinFit = r_range_comb = r_range_comb_KinFit = "--rMin 0 --rMax 2"
-        r_range_setPR_comb = r_range_setPR_KinFit = "--setParameterRanges r=0,2"
+        def get_r_range(feature, comb_type, channel):
+            return "--rMin 0 --rMax 2"
+        def get_r_range_setPR(feature, comb_type, channel):
+            return "--setParameterRanges r=0,2"
     else: 
         if "ZbbHtt" in options.ver:
             o_name = 'ZbbHtt'; fancy_name = '$Z_{bb}H_{\\tau\\tau}$'
         elif "ZttHbb" in options.ver:
             o_name = 'ZttHbb'; fancy_name = '$Z_{\\tau\\tau}H_{bb}$'
-        r_range_single = "--rMin -20 --rMax 25"
-        r_range_comb = "--rMin -10 --rMax 15"
-        r_range_setPR_comb = "--setParameterRanges r=-10,15"
-        r_range_single_KinFit = "--rMin -100 --rMax 100"
-        r_range_comb_KinFit = "--rMin -50 --rMax 50"
-        r_range_setPR_KinFit = "--setParameterRanges r=-50,50"
+        d_DNN = {
+            "single_re1b" : (-40., 45),
+            "single" : (-20., 25),
+            "channel_res1b" : (-30., 35),
+            "channel" : (-10., 15.),
+            "category" : (-1., 4),
+            "year" : (-0.5, 3.)
+        }
+        d_KinFit = {
+            "single" : (-100., 100.),
+            None : (-50., 50.)
+        }
+        def get_r_range(feature, comb_type, category, setPR=False):
+            if "KinFit" in feature:
+                d = d_KinFit
+            else:
+                d = d_DNN
+            try:
+                t = d[comb_type + "_" + GetCatShort(category)]
+            except (KeyError, TypeError):
+                try:
+                    t = d[comb_type]
+                except KeyError:
+                    t = d[None]
+            if setPR:
+                return f"--setParameterRanges r={t[0]},{t[1]}"
+            else:
+                return f"--rMin {t[0]} --rMax {t[1]}"
+
 
     dict_ch_name = {"etau": "$\\tau_{e}\\tau_{h}$", "mutau": "$\\tau_{\\mu}\\tau_{h}$", "tautau": "$\\tau_{h}\\tau_{h}$"}
 
@@ -283,8 +309,7 @@ if __name__ == "__main__" :
         elif "resolved_2b" in category:  cat_name = r"Res 2b"
         else:                            cat_name = "category"
 
-        if "KinFit" in feature: r_range = r_range_single_KinFit
-        else:                   r_range = r_range_single
+        r_range = get_r_range(feature, "single", category)
 
         ch_dir = maindir + f'/{version}/{prd}/{feature}/{category}/{ch}'
         run_cmd('mkdir -p ' + ch_dir)
@@ -375,8 +400,8 @@ if __name__ == "__main__" :
 
         if options.only_cards: return True
 
-        if "KinFit" in feature: r_range = r_range_comb_KinFit ; r_range_setPR = r_range_setPR_KinFit
-        else:                   r_range = r_range_comb ; r_range_setPR = r_range_setPR_comb
+        r_range = get_r_range(feature, "channel", category)
+        r_range_setPR = get_r_range(feature, "channel", category, setPR=True)
     
         cmd = f'text2workspace.py {version}_{feature}_{category}_os_iso.txt -o model.root &>{combdir}/text2workspace.log'
         run_cmd(cmd, run)
@@ -473,8 +498,8 @@ if __name__ == "__main__" :
 
         if options.only_cards: return True
 
-        if "KinFit" in feature: r_range = r_range_comb_KinFit ; r_range_setPR = r_range_setPR_KinFit
-        else:                   r_range = r_range_comb ; r_range_setPR = r_range_setPR_comb
+        r_range = get_r_range(feature, "category", None)
+        r_range_setPR = get_r_range(feature, "category", None, setPR=True)
     
         cmd = f'cd {combdir} && text2workspace.py {combdir}/{version}_{feature}_os_iso.txt --channel-masks -o {combdir}/model.root &>{combdir}/text2workspace.log'
         run_cmd(cmd, run)
@@ -566,8 +591,8 @@ if __name__ == "__main__" :
         if run: os.chdir(combdir)
         run_cmd(cmd, run)
 
-        if "KinFit" in feature: r_range = r_range_comb_KinFit ; r_range_setPR = r_range_setPR_KinFit
-        else:                   r_range = r_range_comb ; r_range_setPR = r_range_setPR_comb
+        r_range = get_r_range(feature, "category", None)
+        r_range_setPR = get_r_range(feature, "category", None, setPR=True)
     
         cmd = f'text2workspace.py {version_comb}_{feature}_os_iso.txt -o model.root &>text2workspace.log'
         run_cmd(cmd, run)
@@ -673,8 +698,8 @@ if __name__ == "__main__" :
 
         if options.only_cards: return True
 
-        if "KinFit" in feature: r_range = r_range_comb_KinFit ; r_range_setPR = r_range_setPR_KinFit
-        else:                   r_range = r_range_comb ; r_range_setPR = r_range_setPR_comb
+        r_range = get_r_range(feature, "year", None)
+        r_range_setPR = get_r_range(feature, "year", None, setPR=True)
     
         cmd = f'text2workspace.py FullRun2_{o_name}_{feature}_os_iso.txt -o model.root &>text2workspace.log'
         run_cmd(cmd, run)
@@ -796,8 +821,8 @@ if __name__ == "__main__" :
         print(cmd)
         run_cmd(cmd, run)
 
-        if "KinFit" in feature: r_range = r_range_comb_KinFit ; r_range_setPR = r_range_setPR_KinFit
-        else:                   r_range = r_range_comb ; r_range_setPR = r_range_setPR_comb
+        r_range = get_r_range(feature, "year", None)
+        r_range_setPR = get_r_range(feature, "year", None, setPR=True)
     
         cmd = f'text2workspace.py FullRun2_ZHComb_{o_name}_{feature}_os_iso.txt -o model.root &>text2workspace.log'
         print(cmd)
