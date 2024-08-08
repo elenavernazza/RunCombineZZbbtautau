@@ -48,6 +48,15 @@ def run_cmd(cmd, run=True, check=True):
             else:
                 print(f"## ERROR : Command {cmd} failed with exit code {e.returncode}. Working directory : {os.getcwd()}")
 
+def GetCatShort(category):
+    if 'resolved_1b' in category: cat = 'res1b'
+    if 'resolved_2b' in category: cat = 'res2b'
+    if 'boosted' in category: cat = 'boosted'
+    return cat
+
+def GetYear(version):
+    return version.split("ul_")[1].split("_Z")[0]
+
 #######################################################################
 ######################### SCRIPT BODY #################################
 #######################################################################
@@ -63,7 +72,7 @@ if __name__ == "__main__" :
             arg_name = arg_name[2:]
         parser.add_argument(f"--{arg_name}", action='store_true', **kwargs)
         parser.add_argument(f"--no_{arg_name}", action='store_false', **kwargs)
-
+    
     parser.add_argument("--ver",          dest="ver",                   default='')
     parser.add_argument("--cat",          dest="cat",                   default='')
     parser.add_argument("--prd",          dest="prd",                   default='')
@@ -76,7 +85,7 @@ if __name__ == "__main__" :
     parser.add_argument("--mass",         dest="mass",                  default='200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,2000,3000')
     makeFlag("--run",                     dest="run",                   default=True,             help='Run commands or do a dry-run')
     makeFlag("--comb_2016",               dest="comb_2016",             default=True,             help='Combine 2016 and 2016_HIPM')
-    makeFlag("--run_copy",                dest="run_copy",              default=True,             help='Run copy of datacards')
+    makeFlag("--run_cp",                  dest="run_cp",                default=True,             help='Run copy of datacards')
     makeFlag("--run_one",                 dest="run_one",               default=True,             help='Run each channel or not')
     makeFlag("--run_ch",                  dest="run_ch",                default=True,             help='Combine channels or not')
     makeFlag("--run_cat",                 dest="run_cat",               default=True,             help='Combine categories or not')
@@ -86,9 +95,11 @@ if __name__ == "__main__" :
     makeFlag("--run_impacts",             dest="run_impacts",           default=True,             help='Make impact plots')
     makeFlag("--run_impacts_noMCStat",    dest="run_impacts_noMCStat",  default=False,            help='Make impact plots, but only without MC stat uncertainties (faster)')
     makeFlag("--plot_only",               dest="plot_only",             default=False,            help='Skip all combine commands and plot only')
+    makeFlag("--only_cards",              dest="only_cards",            default=False,            help='Skip all combine commands and plot only')
     makeFlag("--move_eos",                dest="move_eos",              default=False,            help='Move results to eos')
     makeFlag("--singleThread",            dest="singleThread",          default=False,            help="Don't run in parallel, disable for debugging")
     makeFlag("--featureDependsOnMass",    dest='featureDependsOnMass',  default=False,            help="Add _$MASS to name of feature for each mass for parametrized DNN")
+    makeFlag("--unblind",                 dest="unblind",               default=False,            help="Pick the unblinded datacards and run unblinded limits")
     options = parser.parse_args()
 
     if ',' in options.ver:  versions = options.ver.split(',')
@@ -109,13 +120,18 @@ if __name__ == "__main__" :
     prd = options.prd
     grp = options.grp
     run = int(options.run) == 1
-    run_copy = options.run_copy
     run_one = options.run_one
+    run_cp = options.run_cp
     run_ch = options.run_ch
     run_cat = options.run_cat
     run_year = options.run_year
     featureDependsOnMass = options.featureDependsOnMass
     comb_2016 = options.comb_2016
+    unblind = options.unblind
+    if not unblind: 
+        run_blind = '-t -1'
+    else:
+        run_blind = ''
 
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
     maindir = os.getcwd() + f'/Res{options.num}/'
@@ -199,37 +215,37 @@ if __name__ == "__main__" :
         plt.xlabel(x_axis)
         plt.ylabel(r"95% CL on $\sigma \times \mathbf{\it{B}}$(" + y_axis + r") [pb]")
         plt.title("")
-        plt.ylim(0.003,2*max(p2s_t))
+        plt.ylim(0.003,5*max(p2s_t))
         plt.grid(True, zorder = 4)
         plt.legend(loc='upper right', fontsize=18, frameon=True)
         plt.yscale('log')
         ax = plt.gca()
         ax.set_axisbelow(False)
     
-    ############################################################################
-    print("\n ### INFO: Copy all datacards \n")
-    ############################################################################
+    if run_cp:
 
-    if run_copy:
+        ############################################################################
+        print("\n ### INFO: Copy all datacards \n")
+        ############################################################################
+
         for feature in features:
             for version in versions:
                 for category in categories:
                     for channel in channels:
                         for mass in mass_points:
                             odir = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}'
-                            if run: run_cmd('mkdir -p ' + odir)
+                            run_cmd('mkdir -p ' + odir)
                             if featureDependsOnMass: feat_name = f'{feature}_{mass}'
                             else:                    feat_name = f'{feature}'
-                            ch_file = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{channel}_os_iso.txt'
-                            ch_root = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{channel}_os_iso.root'
+                            if not unblind:
+                                ch_file = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{channel}_os_iso.txt'
+                            else:
+                                ch_file = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{channel}_os_iso__unblind.txt'
                             run_cmd(f'cp {ch_file} {odir}/{version}_{category}_{feat_name}_{grp}_{channel}_os_iso.txt')
-                            run_cmd(f'cp {ch_root} {odir}')
 
     ################################################################################################################################
     ################################################################################################################################
     ################################################################################################################################
-
-    # run combination of 2016 and 2016_HIPM
 
     if comb_2016:
 
@@ -245,7 +261,7 @@ if __name__ == "__main__" :
             
                 combdir = maindir + f'/{v_combined}/{prd}/{feature}/{category}/{channel}/M{mass}'
                 print(" ### INFO: Saving combination in ", combdir)
-                if run: run_cmd('mkdir -p ' + combdir)
+                run_cmd('mkdir -p ' + combdir)
 
                 if featureDependsOnMass: feat_name = f'{feature}_{mass}'
                 else:                    feat_name = f'{feature}'
@@ -256,31 +272,30 @@ if __name__ == "__main__" :
                     cmd += f' Y{year}={year_file}'
                     cmd += f' > {v_combined}_{category}_{feat_name}_{grp}_{channel}_os_iso.txt'
                 if run: os.chdir(combdir)
-                if run: run_cmd(cmd)
+                run_cmd(cmd, run)
 
-            if run_one:
-                if not options.plot_only:
+            if not options.plot_only and (options.run_one or options.only_cards):
+    
+                ############################################################################
+                print("\n ### INFO: Run Combination of 2016 and 2016_HIPM \n")
+                ############################################################################
 
-                    ############################################################################
-                    print("\n ### INFO: Run Combination of 2016 and 2016_HIPM \n")
-                    ############################################################################
-
-                    if options.singleThread:
+                if options.singleThread:
+                    for feature in features:
+                        for category in categories:
+                            for channel in channels:
+                                for mass in mass_points:
+                                    run_comb_2016(feature, category, channel, mass)
+                else:
+                    with concurrent.futures.ProcessPoolExecutor(max_workers=15) as exc:
+                        futures = []
                         for feature in features:
                             for category in categories:
                                 for channel in channels:
                                     for mass in mass_points:
                                         run_comb_2016(feature, category, channel, mass)
-                    else:
-                        with concurrent.futures.ProcessPoolExecutor(max_workers=15) as exc:
-                            futures = []
-                            for feature in features:
-                                for category in categories:
-                                    for channel in channels:
-                                        for mass in mass_points:
-                                            run_comb_2016(feature, category, channel, mass)
-                            for res in concurrent.futures.as_completed(futures):
-                                res.result()
+                        for res in concurrent.futures.as_completed(futures):
+                            res.result()
 
             versions.remove(v_2016) 
             versions.remove(v_2016_HIPM)
@@ -309,11 +324,11 @@ if __name__ == "__main__" :
 
         print(" ### INFO: Run Asymptotic limit")
         cmd = f'cd {odir} && combine -M AsymptoticLimits {datafile} --run blind --noFitAsimov {comb_options} &> combine.log'
-        if run: run_cmd(cmd)
+        run_cmd(cmd, run)
 
         SaveResults(odir, mass)
         
-    if run_one:
+    if run_one and not options.only_cards:
 
         if not options.plot_only:
 
@@ -361,10 +376,11 @@ if __name__ == "__main__" :
                     for channel in channels:
                         limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json'
                             for mass in mass_points]
+                        print(limit_file_list)
                         mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                        if len(mass) == 0:
-                            print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel} due to no limits available")
-                            continue
+                        # if len(mass) == 0:
+                        #     print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel} due to no limits available")
+                        #     continue
                         
                         fig, ax = plt.subplots(figsize=(12,10))
                         plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
@@ -390,27 +406,33 @@ if __name__ == "__main__" :
 
         combdir = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}'
         print(" ### INFO: Saving combination in ", combdir)
-        if run: run_cmd('mkdir -p ' + combdir)
+        run_cmd('mkdir -p ' + combdir, run)
 
         cmd = f'combineCards.py'
+        # for ch in channels:
+        #     # FIrst check if we have limits for individual channel
+        #     ch_file = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{ch}_os_iso.txt'
+        #     if CheckLimits(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json') and os.path.isfile(ch_file): # check expected
+        #         cmd += f' {ch}={ch_file}'
+        #     else:
+        #         print(f"## WARNING : comb_channels : skipping {version}/{prd}/{category}/{channel}/M{mass}")
+        # if not "=" in cmd:
+        #     print(f"## WARNING Skipping combination {version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}")
+        #     return
         for ch in channels:
-            # FIrst check if we have limits for individual channel
-            ch_file = cmtdir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{ch}_os_iso.txt'
-            if CheckLimits(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json') and os.path.isfile(ch_file): # check expected
-                cmd += f' {ch}={ch_file}'
-            else:
-                print(f"## WARNING : comb_channels : skipping {version}/{prd}/{category}/{channel}/M{mass}")
-        if not "=" in cmd:
-            print(f"## WARNING Skipping combination {version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}")
-            return
+            ch_file = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/{version}_{category}_{feat_name}_{grp}_{channel}_os_iso.txt'
+            # maindir + f'/{version}/{category}/{prd}_M{mass}/{feat_name}_{grp}_{ch}_os_iso.txt'
+            cmd += f' {ch}={ch_file}'
         cmd += f' > {version}_{feature}_{category}_os_iso.txt'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd)
+        run_cmd(cmd, run)
+
+        if options.only_cards: return True
 
         cmd = f'combine -M AsymptoticLimits {version}_{feature}_{category}_os_iso.txt --run blind --noFitAsimov {comb_options} &> combine.log'
         
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd, check=False)
+        run_cmd(cmd, run)
 
         SaveResults(combdir, mass)
         
@@ -439,50 +461,52 @@ if __name__ == "__main__" :
                     for res in concurrent.futures.as_completed(futures):
                         res.result()
 
-        ############################################################################
-        print("\n ### INFO: Plot Combination of channels \n")
-        ############################################################################
+        if not options.only_cards:
 
-        for feature in features:
-            for version in versions:
-                for category in categories:
+            ############################################################################
+            print("\n ### INFO: Plot Combination of channels \n")
+            ############################################################################
 
-                    if "boosted" in category:        cat_name = r"Boosted"
-                    elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                    elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                    else:                            cat_name = category
+            for feature in features:
+                for version in versions:
+                    for category in categories:
 
-                    limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
-                        for mass in mass_points]
-                    mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+                        if "boosted" in category:        cat_name = r"Boosted"
+                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
+                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
+                        else:                            cat_name = category
 
-                    if len(mass) == 0 or np.max(p1s_t) <= 0:
-                        print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split due to no limits available")
-                        continue
-                    
-                    fig, ax = plt.subplots(figsize=(12,10))
-                    plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
-                    plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
-                        color = '#FFDF7Fff', label = "68% expected", zorder=2)
-                    plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
-                        color = '#85D1FBff', label = "95% expected", zorder=1)
-                    SetStyle(p2s_t, x_axis, process_tex, version, line1=cat_name)
-                    ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.pdf')
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
-                    # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
-
-                    cmap = plt.get_cmap('tab10')
-                    for i, channel in enumerate(channels):
-                        limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json'
+                        limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                             for mass in mass_points]
                         mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {dict_ch_name[channel]}", zorder=3, color=cmap(i))
-                    plt.legend(loc='upper right', fontsize=18, frameon=True)
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.pdf')
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
-                    # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
-                    plt.close()
+
+                        if len(mass) == 0 or np.max(p1s_t) <= 0:
+                            print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split due to no limits available")
+                            continue
+                        
+                        fig, ax = plt.subplots(figsize=(12,10))
+                        plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                        plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
+                            color = '#FFDF7Fff', label = "68% expected", zorder=2)
+                        plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
+                            color = '#85D1FBff', label = "95% expected", zorder=1)
+                        SetStyle(p2s_t, x_axis, process_tex, version, line1=cat_name)
+                        ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.pdf')
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
+                        # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
+
+                        cmap = plt.get_cmap('tab10')
+                        for i, channel in enumerate(channels):
+                            limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json'
+                                for mass in mass_points]
+                            mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+                            plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {dict_ch_name[channel]}", zorder=3, color=cmap(i))
+                        plt.legend(loc='upper right', fontsize=18, frameon=True)
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.pdf')
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
+                        # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
+                        plt.close()
 
     ##########################################################
     # RUN COMBINATION OF CATEGORIES
@@ -495,26 +519,32 @@ if __name__ == "__main__" :
 
         combdir = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}'
         print(" ### INFO: Saving combination in ", combdir)
-        if run: run_cmd('mkdir -p ' + combdir)
+        run_cmd('mkdir -p ' + combdir)
 
         cmd = f'combineCards.py'
+        # for category in categories:
+        #     cat_file = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/{version}_{feature}_{category}_os_iso.txt'
+        #     if CheckLimits(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json') and os.path.isfile(cat_file): # check expected
+        #         cat_short = category.split("_cut_90_")[1]
+        #         cmd += f' {cat_short}={cat_file}'
+        #     else:
+        #         print(f"## WARNING : comb_categories: skipping {version}/{prd}/{category}/Combination_Ch/M{mass}")
+        # if not "=" in cmd:
+        #     print(f"## WARNING Skipping combination {version}/{prd}/{feature}/Combination_Cat/M{mass}")
+        #     return
         for category in categories:
             cat_file = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/{version}_{feature}_{category}_os_iso.txt'
-            if CheckLimits(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json') and os.path.isfile(cat_file): # check expected
-                cat_short = category.split("_cut_90_")[1]
-                cmd += f' {cat_short}={cat_file}'
-            else:
-                print(f"## WARNING : comb_categories: skipping {version}/{prd}/{category}/Combination_Ch/M{mass}")
-        if not "=" in cmd:
-            print(f"## WARNING Skipping combination {version}/{prd}/{feature}/Combination_Cat/M{mass}")
-            return
+            cat_short = category.split("_cut_90_")[1]
+            cmd += f' {cat_short}={cat_file}'
         cmd += f' > {version}_{feature}_os_iso.txt'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd)
+        run_cmd(cmd, run)
+
+        if options.only_cards: return True
 
         cmd = f'combine -M AsymptoticLimits {version}_{feature}_os_iso.txt --run blind --noFitAsimov {comb_options} &> combine.log'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd, check=False)
+        run_cmd(cmd, run)
 
         SaveResults(combdir, mass)
 
@@ -541,56 +571,58 @@ if __name__ == "__main__" :
                     for res in concurrent.futures.as_completed(futures):
                         res.result()
 
-        ############################################################################
-        print("\n ### INFO: Plot Combination of categories \n")
-        ############################################################################
+        if not options.only_cards:
 
-        for feature in features:
-            for version in versions:
+            ############################################################################
+            print("\n ### INFO: Plot Combination of categories \n")
+            ############################################################################
 
-                limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
-                    for mass in mass_points]
-                mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+            for feature in features:
+                for version in versions:
 
-                if len(mass) == 0:
-                    print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split due to no limits available")
-                    continue
-                
-                fig, ax = plt.subplots(figsize=(12,10))
-                plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
-                plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
-                    color = '#FFDF7Fff', label = "68% expected", zorder=2)
-                plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
-                    color = '#85D1FBff', label = "95% expected", zorder=1)
-                SetStyle(p2s_t, x_axis, process_tex, version)
-                ver_short = version.split("ul_")[1].split("_Z")[0]
-                try:
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
-                except ValueError:
-                    pass # Math domain error due log scale
-                # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
-
-                cmap = plt.get_cmap('tab10')
-                for i, category in enumerate(categories):
-
-                    if "boosted" in category:        cat_name = r"Boosted"
-                    elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                    elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                    else:                            cat_name = category
-
-                    limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
+                    limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {cat_name}", zorder=3, color=cmap(i))
-                plt.legend(loc='upper right', fontsize=18, frameon=True)
-                try:
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
-                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
-                except ValueError:
-                    pass # Math domain error due log scale
-                # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
-                plt.close()
+
+                    if len(mass) == 0:
+                        print(f"## INFO : skipping plot for {maindir}/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split due to no limits available")
+                        continue
+                    
+                    fig, ax = plt.subplots(figsize=(12,10))
+                    plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                    plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
+                        color = '#FFDF7Fff', label = "68% expected", zorder=2)
+                    plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
+                        color = '#85D1FBff', label = "95% expected", zorder=1)
+                    SetStyle(p2s_t, x_axis, process_tex, version)
+                    ver_short = version.split("ul_")[1].split("_Z")[0]
+                    try:
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
+                    except ValueError:
+                        pass # Math domain error due log scale
+                    # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
+
+                    cmap = plt.get_cmap('tab10')
+                    for i, category in enumerate(categories):
+
+                        if "boosted" in category:        cat_name = r"Boosted"
+                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
+                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
+                        else:                            cat_name = category
+
+                        limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
+                            for mass in mass_points]
+                        mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {cat_name}", zorder=3, color=cmap(i))
+                    plt.legend(loc='upper right', fontsize=18, frameon=True)
+                    try:
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
+                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
+                    except ValueError:
+                        pass # Math domain error due log scale
+                    # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
+                    plt.close()
 
     ##########################################################
     # RUN COMBINATION OF ZbbHtt & ZttHbb for a single year
@@ -601,7 +633,7 @@ if __name__ == "__main__" :
         version_comb = version_ZbbHtt.replace("ZbbHtt", "ZHComb")
         combdir = maindir + f'/{version_comb}/{prd}/{feature}/M{mass}'
         print(" ### INFO: Saving combination in ", combdir)
-        if run: run_cmd('mkdir -p ' + combdir)
+        run_cmd('mkdir -p ' + combdir)
 
         cmd = f'combineCards.py'
         for version, short_name in [(version_ZbbHtt, "ZbbHtt"), (version_ZttHbb, "ZttHbb")]:
@@ -615,11 +647,11 @@ if __name__ == "__main__" :
             return
         cmd += f' > {version_comb}_{feature}_os_iso.txt'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd)
+        run_cmd(cmd, run)
 
         cmd = f'combine -M AsymptoticLimits {version_comb}_{feature}_os_iso.txt --run blind --noFitAsimov {comb_options} &> combine.log'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd, check=False)
+        run_cmd(cmd, run)
 
         SaveResults(combdir, mass)
 
@@ -702,23 +734,29 @@ if __name__ == "__main__" :
 
         combdir = maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}'
         print(" ### INFO: Saving combination in ", combdir)
-        if run: run_cmd('mkdir -p ' + combdir)
+        run_cmd('mkdir -p ' + combdir)
 
         cmd = f'combineCards.py'
+        # for version in versions:
+        #     ver_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/{version}_{feature}_os_iso.txt'
+        #     if CheckLimits(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json') and os.path.isfile(ver_file): # check expected
+        #         ver_short = version.split("ul_")[1].split("_Z")[0]
+        #         cmd += f' Y{ver_short}={ver_file}'
+        #     else:
+        #         print(f"## WARNING : comb_years: skipping {version}/{prd}/{feature}/Combination_Cat/M{mass}")
+            
+        # if not "=" in cmd:
+        #     print(f"## WARNING Skipping combination FullRun2_{o_name}/{prd}/{feature}/M{mass}")
+        #     return
         for version in versions:
             ver_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/{version}_{feature}_os_iso.txt'
-            if CheckLimits(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json') and os.path.isfile(ver_file): # check expected
-                ver_short = version.split("ul_")[1].split("_Z")[0]
-                cmd += f' Y{ver_short}={ver_file}'
-            else:
-                print(f"## WARNING : comb_years: skipping {version}/{prd}/{feature}/Combination_Cat/M{mass}")
-            
-        if not "=" in cmd:
-            print(f"## WARNING Skipping combination FullRun2_{o_name}/{prd}/{feature}/M{mass}")
-            return
+            cmd += f' Y{GetYear(version)}={ver_file}'
         cmd += f' > FullRun2_{o_name}_{feature}_os_iso.txt'
         if run: os.chdir(combdir)
-        if run: run_cmd(cmd)
+        print('\n',cmd,'\n')
+        run_cmd(cmd, run)
+
+        if options.only_cards: return True
 
         cmd = f'combine -M AsymptoticLimits FullRun2_{o_name}_{feature}_os_iso.txt --run blind --noFitAsimov {comb_options} &> combine.log'
         if run: os.chdir(combdir)
@@ -726,31 +764,35 @@ if __name__ == "__main__" :
 
         SaveResults(combdir, mass)
 
-        print(" ### INFO: Produce Full Run 2 Impact Plots")
+        if options.run_impacts or options.run_impacts_noMCStat:
 
-        cmd = f'text2workspace.py FullRun2_{o_name}_{feature}_os_iso.txt -o model.root &> text2workspace.log'
-        if run: os.system(cmd)
-        cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' 
-        if run: os.system(cmd)
-        cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'
-        if run: os.system(cmd)
-        cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts.json --parallel 50'
-        if run: os.system(cmd)
-        cmd = f'plotImpacts.py -i impacts.json -o Impacts_{o_name}_{feature}'
-        if run: os.system(cmd)
-        if run: os.system('mkdir -p impacts')
-        if run: os.system('mv higgsCombine_paramFit* higgsCombine_initialFit* impacts')
+            print(" ### INFO: Produce Full Run 2 Impact Plots")
 
-        cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' +  r" --exclude 'rgx{prop_bin.+}'"
-        if run: os.system(cmd)
-        cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
-        if run: os.system(cmd)
-        cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts_noMCstats.json --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
-        if run: os.system(cmd)
-        cmd = f'plotImpacts.py -i impacts_noMCstats.json -o Impacts_{o_name}_{feature}_NoMCstats'
-        if run: os.system(cmd)
-        if run: os.system('mkdir -p impacts_noMCstats')
-        if run: os.system('mv higgsCombine_paramFit* higgsCombine_initialFit* impacts_noMCstats')
+            if not options.run_impacts_noMCStat:
+
+                cmd = f'text2workspace.py FullRun2_{o_name}_{feature}_os_iso.txt -o model.root &> text2workspace.log'
+                run_cmd(cmd, run)
+                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' 
+                run_cmd(cmd, run)
+                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'
+                run_cmd(cmd, run)
+                cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts.json --parallel 50'
+                run_cmd(cmd, run)
+                cmd = f'plotImpacts.py -i impacts.json -o Impacts_{o_name}_{feature}'
+                run_cmd(cmd, run)
+                if run: run_cmd('mkdir -p impacts')
+                if run: run_cmd('mv higgsCombine_paramFit* higgsCombine_initialFit* impacts')
+
+            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' +  r" --exclude 'rgx{prop_bin.+}'"
+            run_cmd(cmd, run)
+            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
+            run_cmd(cmd, run)
+            cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts_noMCstats.json --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
+            run_cmd(cmd, run)
+            cmd = f'plotImpacts.py -i impacts_noMCstats.json -o Impacts_{o_name}_{feature}_NoMCstats'
+            run_cmd(cmd, run)
+            if run: run_cmd('mkdir -p impacts_noMCstats')
+            if run: run_cmd('mv higgsCombine_paramFit* higgsCombine_initialFit* impacts_noMCstats')
                                         
     if run_year:
 
@@ -773,50 +815,51 @@ if __name__ == "__main__" :
                     for res in concurrent.futures.as_completed(futures):
                         res.result()
 
-        ############################################################################
-        print("\n ### INFO: Plot Combination of years \n")
-        ############################################################################
+        if not options.only_cards:
+            ############################################################################
+            print("\n ### INFO: Plot Combination of years \n")
+            ############################################################################
 
-        for feature in features:
+            for feature in features:
 
-            limit_file_list = [maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}/limits.json'
-                for mass in mass_points]
-            mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-
-            if len(mass) == 0:
-                print(f"## INFO : skipping plot for {maindir}/FullRun2_{o_name}/{prd}/{feature}/ due to no limits available")
-                continue
-            
-            output_csv_path = maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.csv'
-            with open(output_csv_path, 'w', newline='') as csvfile:
-                csvwriter = csv.writer(csvfile)
-                csvwriter.writerow(['mass', 'exp', 'm1s_t', 'p1s_t', 'm2s_t', 'p2s_t'])
-                for i in range(len(mass)):
-                    csvwriter.writerow([mass[i], exp[i], m1s_t[i], p1s_t[i], m2s_t[i], p2s_t[i]])
-
-            fig, ax = plt.subplots(figsize=(12,10))
-            plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
-            plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
-                color = '#FFDF7Fff', label = "68% expected", zorder=2)
-            plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
-                color = '#85D1FBff', label = "95% expected", zorder=1)
-            SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
-            plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf')
-            plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
-            # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
-
-            cmap = plt.get_cmap('tab10')
-            for i, version in enumerate(versions):
-                ver_short = version.split("ul_")[1].split("_Z")[0]
-                limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
+                limit_file_list = [maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}/limits.json'
                     for mass in mass_points]
                 mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {ver_short}", zorder=3, color=cmap(i))
-            plt.legend(loc='upper right', fontsize=18, frameon=True)
-            plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.pdf')
-            plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
-            # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
-            plt.close()
+
+                if len(mass) == 0:
+                    print(f"## INFO : skipping plot for {maindir}/FullRun2_{o_name}/{prd}/{feature}/ due to no limits available")
+                    continue
+                
+                output_csv_path = maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.csv'
+                with open(output_csv_path, 'w', newline='') as csvfile:
+                    csvwriter = csv.writer(csvfile)
+                    csvwriter.writerow(['mass', 'exp', 'm1s_t', 'p1s_t', 'm2s_t', 'p2s_t'])
+                    for i in range(len(mass)):
+                        csvwriter.writerow([mass[i], exp[i], m1s_t[i], p1s_t[i], m2s_t[i], p2s_t[i]])
+
+                fig, ax = plt.subplots(figsize=(12,10))
+                plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
+                    color = '#FFDF7Fff', label = "68% expected", zorder=2)
+                plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
+                    color = '#85D1FBff', label = "95% expected", zorder=1)
+                SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf')
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
+                # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
+
+                cmap = plt.get_cmap('tab10')
+                for i, version in enumerate(versions):
+                    ver_short = version.split("ul_")[1].split("_Z")[0]
+                    limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
+                        for mass in mass_points]
+                    mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {ver_short}", zorder=3, color=cmap(i))
+                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.pdf')
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
+                # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
+                plt.close()
 
     if options.move_eos:
 
