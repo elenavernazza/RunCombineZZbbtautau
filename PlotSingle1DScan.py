@@ -39,7 +39,7 @@ def SetStyle(fig, x, line1="", line2="", max=5):
     plt.ylabel('-2 $\\Delta LL$')
     plt.title("")
     # plt.xlim(x[0], x[-1])
-    plt.ylim(0,max)
+    # plt.ylim(0,max)
     plt.grid()
 
 if __name__ == "__main__" :

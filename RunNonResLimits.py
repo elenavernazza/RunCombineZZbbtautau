@@ -52,6 +52,14 @@ def GetCatShort(category):
 def GetYear(version):
     return version.split("ul_")[1].split("_Z")[0]
 
+def GetPlotYear(year):
+    if '2016_HIPM' in year: return '2016 HIPM'
+    elif '2016' in year: return '2016'
+    elif '2017' in year: return '2017'
+    elif '2018' in year: return '2018'
+    else: sys.exit(f'Year {year} not valid')
+
+
 #######################################################################
 ######################### SCRIPT BODY #################################
 #######################################################################
@@ -77,6 +85,7 @@ if __name__ == "__main__" :
     parser.add_argument("--num",          dest="num",                   default='',               help='Assign number to output directory for versioning')
     parser.add_argument("--user_eos",     dest="user_eos",              default='evernazz',       help='User Name for lxplus account')
     parser.add_argument("--user_cmt",     dest="user_cmt",              default='vernazza',       help='User Name for cmt folder')
+    parser.add_argument("--TTrate",       dest="TTrate",                default=False,            help="Use CR to constrain tt-bar normalisation", action='store_true')
     makeFlag("--run",                     dest="run",                   default=True,             help='Run commands or do a dry-run')
     makeFlag("--comb_2016",               dest="comb_2016",             default=True,             help='Combine 2016 and 2016_HIPM')
     makeFlag("--run_cp",                  dest="run_cp",                default=True,             help='Run copy of datacards')
@@ -118,6 +127,7 @@ if __name__ == "__main__" :
     run_year = options.run_year
     comb_2016 = options.comb_2016
     unblind = options.unblind
+    TTrate = options.TTrate
     if not unblind: 
         run_blind = '-t -1 --expectSignal 1'
     else:
@@ -129,9 +139,9 @@ if __name__ == "__main__" :
 
     if "ZZ" in options.ver:
         o_name = 'ZZbbtt'; fancy_name = '$ZZ_{bb\\tau\\tau}$'
-        def get_r_range(feature, comb_type, channel):
+        def get_r_range(feature, comb_type, channel, setPR=False):
             return "--rMin 0 --rMax 2"
-        def get_r_range_setPR(feature, comb_type, channel):
+        def get_r_range_setPR(feature, comb_type, channel, setPR=False):
             return "--setParameterRanges r=0,2"
     else: 
         if "ZbbHtt" in options.ver:
@@ -170,45 +180,58 @@ if __name__ == "__main__" :
 
     dict_ch_name = {"etau": "$\\tau_{e}\\tau_{h}$", "mutau": "$\\tau_{\\mu}\\tau_{h}$", "tautau": "$\\tau_{h}\\tau_{h}$"}
 
-    def SetStyle(fig, x, line1="", line2="", max=5):
+    def SetStyle(fig, x, y, line1="", line2="", max=5, crossing=False):
         plt.axhline(y=1, color='gray', linestyle='--', linewidth=2)
         plt.axhline(y=3.84, color='gray', linestyle='--', linewidth=2)
-        plt.text(x[0] + 0.05, 1 + 0.1, '68% C.L.', fontsize=18)
-        plt.text(x[0] + 0.05, 3.84 + 0.1, '95% C.L.', fontsize=18)
+        x_min = x[0]; x_max = x[-1]
+        if crossing:
+            x_min = x[0]; x_max = x[-1]
+            # x_min=-2; x_max=4
+            # x_min = GetCrossings(x, y, 8)[0] - 2 
+            # x_max = GetCrossings(x, y, 8)[1] + 2 
+        fac = 1 + 9*((x[-1]-x[0])>3)
+        plt.text(x_min + 0.05*fac, 1 + 0.1, '68% C.L.', fontsize=18)
+        plt.text(x_min + 0.05*fac, 3.84 + 0.1, '95% C.L.', fontsize=18)
         plt.text(0.03, 0.97, line1, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
         plt.text(0.03, 0.92, line2, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
         mplhep.cms.label(data=False)
         plt.xlabel('$\\mu$')
         plt.ylabel('-2 $\\Delta LL$')
         plt.title("")
-        plt.xlim(x[0], x[-1])
+        plt.xlim(x_min,x_max)
         plt.ylim(0,max)
         plt.grid()
 
+    def GetCrossings(x, y, target):
+        crossings = np.where(np.diff(np.sign(y - target)))[0]
+        x_crossings = []
+        for i in crossings:
+            x1, x2 = x[i], x[i+1]
+            y1, y2 = y[i], y[i+1]
+            # Linear interpolation
+            x_target = x1 + (target - y1) * (x2 - x1) / (y2 - y1)
+            x_crossings.append(x_target)
+        return np.array(x_crossings)
+
     def WriteResults (fig, x, y, x_stat, y_stat, sig_file, sig=True, round = 2):
+
+        target = 3.84
         central = x[np.argmin(y)]
-        interval_1sigma = x[np.where(y < 1)]
-        min_1sigma = np.abs(min(interval_1sigma)-central)
-        max_1sigma = np.abs(max(interval_1sigma)-central)
-        interval_1sigma_stat = x_stat[np.where(y_stat < 1)]
-        min_1sigma_stat = np.abs(min(interval_1sigma_stat)-central)
-        max_1sigma_stat = np.abs(max(interval_1sigma_stat)-central)
-        r = central
-        up = max_1sigma
-        down = min_1sigma
-        up_stat = max_1sigma_stat
-        down_stat = min_1sigma_stat
-        up_syst = np.sqrt(max_1sigma**2 - max_1sigma_stat**2)
-        down_syst = np.sqrt(min_1sigma**2 - min_1sigma_stat**2)
+        down = np.abs(GetCrossings(x, y, target)[0]-central)
+        up = np.abs(GetCrossings(x, y, target)[1]-central)
+        down_stat = np.abs(GetCrossings(x_stat, y_stat, target)[0]-central)
+        up_stat = np.abs(GetCrossings(x_stat, y_stat, target)[1]-central)
+
+        up_syst = np.sqrt(up**2 - up_stat**2)
+        down_syst = np.sqrt(down**2 - down_stat**2)
         sig = GetLimit(sig_file)
 
         if not unblind: mu = '1.00'
         else:           mu = f'{central:.{round}f}'
         text = fr"$\mu = {mu}^{{+{up_syst:.{round}f}}}_{{-{down_syst:.{round}f}}}(syst)^{{+{up_stat:.{round}f}}}_{{-{down_stat:.{round}f}}}(stat)$"
-        if sig: text += f"\nSignificance = {sig:.{round}f}$\sigma$"
+        if sig: text += f"\nSignificance = {sig:.2f}$\sigma$"
         plt.text(0.03, 0.91, text, ha='left', va='top', transform=plt.gca().transAxes, fontsize='small',
             bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
-        sig = GetLimit(sig_file)
     
     def GetDeltaLL(LS_file):
         file = uproot.open(LS_file)
@@ -238,10 +261,11 @@ if __name__ == "__main__" :
                     for channel in channels:
                         odir = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}'
                         run_cmd('mkdir -p ' + odir)
-                        if not unblind:
-                            ch_file = cmtdir + f'/{version}/{category}/{prd}/{feature}_{grp}_{channel}_os_iso.txt'
-                        else:
-                            ch_file = cmtdir + f'/{version}/{category}/{prd}/{feature}_{grp}_{channel}_os_iso__unblind.txt'
+                        add_unblind = ''
+                        add_TTrate = ''
+                        if unblind: add_unblind = '__unblind'
+                        if TTrate: add_TTrate = '__TTrate'
+                        ch_file = cmtdir + f'/{version}/{category}/{prd}/{feature}_{grp}_{channel}_os_iso{add_unblind}{add_TTrate}.txt'
                         run_cmd(f'cp {ch_file} {odir}/{version}_{category}_{feature}_{grp}_{channel}_os_iso.txt')
 
     ################################################################################################################################
@@ -329,7 +353,7 @@ if __name__ == "__main__" :
 
         fig = plt.figure(figsize=(10, 10))
         plt.plot(x, y, label='Data', color='red', linewidth=3)
-        SetStyle(fig, x, cat_name, dict_ch_name[ch])
+        SetStyle(fig, x, y, cat_name, dict_ch_name[ch])
         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.png")
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.pdf")
@@ -471,7 +495,7 @@ if __name__ == "__main__" :
                         x_stat, y_stat = GetDeltaLL(LS_file)
                         plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                         plt.legend(loc='upper right', fontsize=18, frameon=True)
-                        SetStyle(fig, x, cat_name, "", 8)
+                        SetStyle(fig, x, y, cat_name, "", 8)
                         WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/higgsCombineTest.Significance.mH120.root')
                         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.png')
@@ -564,8 +588,7 @@ if __name__ == "__main__" :
                     x_stat, y_stat = GetDeltaLL(LS_file)
                     plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                     plt.legend(loc='upper right', fontsize=18, frameon=True)
-                    year = version.split("ul_")[1].split("_Z")[0]
-                    SetStyle(fig, x, year, "", 8)
+                    SetStyle(fig, x, y, GetPlotYear(version), "", 8)
                     WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.Significance.mH120.root')
                     ver_short = version.split("ul_")[1].split("_Z")[0]
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/DeltaNLL_{ver_short}.png')
@@ -669,7 +692,7 @@ if __name__ == "__main__" :
                     x_stat, y_stat = GetDeltaLL(LS_file)
                     plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                     plt.legend(loc='upper right', fontsize=18, frameon=True)
-                    SetStyle(fig, x, "ZH Combination", "", 8)
+                    SetStyle(fig, x, y, "ZH Combination", "", 8)
                     WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version_comb}/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
                     ver_short = version.split("ul_")[1].split("_Z")[0]
                     plt.savefig(maindir + f'/{version_comb}/{prd}/{feature}/DeltaNLL_{ver_short}.png')
@@ -779,7 +802,7 @@ if __name__ == "__main__" :
                 for i, version in enumerate(versions):
                     LS_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.MultiDimFit.mH120.root'
                     x, y = GetDeltaLL(LS_file)
-                    plt.plot(x, y, label=version.split("ul_")[1].split("_Z")[0], linewidth=3, color=cmap(i))
+                    plt.plot(x, y, label=GetPlotYear(version), linewidth=3, color=cmap(i))
                 LS_file = maindir + f'/FullRun2_{o_name}/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
                 x, y = GetDeltaLL(LS_file)
                 plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
@@ -787,7 +810,7 @@ if __name__ == "__main__" :
                 x_stat, y_stat = GetDeltaLL(LS_file)
                 plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                 plt.legend(loc='upper right', fontsize=18, frameon=True)
-                SetStyle(fig, x, fancy_name, "", 8)
+                SetStyle(fig, x, y, fancy_name, "", 8, crossing=True)
                 WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_{o_name}/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/DeltaNLL_FullRun2_{o_name}.png')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/DeltaNLL_FullRun2_{o_name}.pdf')
@@ -903,7 +926,7 @@ if __name__ == "__main__" :
             for i, version in enumerate(versions):
                 LS_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.MultiDimFit.mH120.root'
                 x, y = GetDeltaLL(LS_file)
-                plt.plot(x, y, label=version.split("ul_")[1].replace("_", " "), linewidth=3, color=cmap(i))
+                plt.plot(x, y, label=GetPlotYear(version), linewidth=3, color=cmap(i))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
             x, y = GetDeltaLL(LS_file)
             plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
@@ -911,7 +934,7 @@ if __name__ == "__main__" :
             x_stat, y_stat = GetDeltaLL(LS_file)
             plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
             plt.legend(loc='upper right', fontsize=18, frameon=True)
-            SetStyle(fig, x, fancy_name, "", 8)
+            SetStyle(fig, x, y, fancy_name, "", 8)
             WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_allYears.png')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_allYears.pdf')
@@ -923,7 +946,7 @@ if __name__ == "__main__" :
             for i, version in enumerate(["ZbbHtt", "ZttHbb"]):
                 LS_file = maindir + f'/FullRun2_{version}/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
                 x, y = GetDeltaLL(LS_file)
-                plt.plot(x, y, label=version, linewidth=3, color=cmap(i))
+                plt.plot(x, y, label=GetPlotYear(version), linewidth=3, color=cmap(i))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
             x, y = GetDeltaLL(LS_file)
             plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
@@ -931,7 +954,7 @@ if __name__ == "__main__" :
             x_stat, y_stat = GetDeltaLL(LS_file)
             plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
             plt.legend(loc='upper right', fontsize=18, frameon=True)
-            SetStyle(fig, x, fancy_name, "", 8)
+            SetStyle(fig, x, y, fancy_name, "", 8)
             WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_summary.png')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_summary.pdf')
