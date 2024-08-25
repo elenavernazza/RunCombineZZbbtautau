@@ -49,16 +49,31 @@ def GetCatShort(category):
     if 'boosted' in category: cat = 'boosted'
     return cat
 
+def GetCat(category):
+    if 'resolved_1b' in category: cat = 'Res 1b'
+    if 'resolved_2b' in category: cat = 'Res 2b'
+    if 'boosted' in category: cat = 'Boosted'
+    return cat
+
 def GetYear(version):
     return version.split("ul_")[1].split("_Z")[0]
 
-def GetPlotYear(year):
-    if '2016_HIPM' in year: return '2016 HIPM'
-    elif '2016' in year: return '2016'
-    elif '2017' in year: return '2017'
-    elif '2018' in year: return '2018'
-    else: sys.exit(f'Year {year} not valid')
+def GetPlotYear(version):
+    if '2016_HIPM' in version: return '2016 HIPM'
+    elif '2016' in version: return '2016'
+    elif '2017' in version: return '2017'
+    elif '2018' in version: return '2018'
+    else: sys.exit(f'ERROR: Year {version} not valid')
 
+def GetProc(version):
+    if 'ZZ' in version: return '$ZZ_{bb\\tau\\tau}$'
+    if 'ZbbHtt' in version: return '$Z_{bb}H_{\\tau\\tau}$'
+    if 'ZttHbb' in version: return '$Z_{\\tau\\tau}H_{bb}$'
+
+def GetProcName(version):
+    if 'ZZ' in version: return 'ZZbbtt'
+    if 'ZbbHtt' in version: return 'ZbbHtt'
+    if 'ZttHbb' in version: return 'ZttHbb'
 
 #######################################################################
 ######################### SCRIPT BODY #################################
@@ -136,25 +151,24 @@ if __name__ == "__main__" :
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
     maindir = os.getcwd() + f'/NonRes{options.num}/'
 
-
     if "ZZ" in options.ver:
-        o_name = 'ZZbbtt'; fancy_name = '$ZZ_{bb\\tau\\tau}$'
+        o_name = 'ZZbbtt'
         def get_r_range(feature, comb_type, channel, setPR=False):
             return "--rMin 0 --rMax 2"
         def get_r_range_setPR(feature, comb_type, channel, setPR=False):
             return "--setParameterRanges r=0,2"
     else: 
         if "ZbbHtt" in options.ver:
-            o_name = 'ZbbHtt'; fancy_name = '$Z_{bb}H_{\\tau\\tau}$'
+            o_name = 'ZbbHtt'
         elif "ZttHbb" in options.ver:
-            o_name = 'ZttHbb'; fancy_name = '$Z_{\\tau\\tau}H_{bb}$'
+            o_name = 'ZttHbb'
         d_DNN = {
             "single_re1b" : (-40., 45),
             "single" : (-20., 25),
             "channel_res1b" : (-30., 35),
             "channel" : (-10., 15.),
-            "category" : (-1., 4),
-            "year" : (-0.5, 3.)
+            "category" : (-2.5, 5,5),
+            "year" : (-2, 4.)
         }
         d_KinFit = {
             "single" : (-100., 100.),
@@ -187,9 +201,10 @@ if __name__ == "__main__" :
         if crossing:
             x_min = x[0]; x_max = x[-1]
             # x_min=-2; x_max=4
+            x_min=-2; x_max=4
             # x_min = GetCrossings(x, y, 8)[0] - 2 
             # x_max = GetCrossings(x, y, 8)[1] + 2 
-        fac = 1 + 9*((x[-1]-x[0])>3)
+        fac = 1 + 9*((x[-1]-x[0])>5)
         plt.text(x_min + 0.05*fac, 1 + 0.1, '68% C.L.', fontsize=18)
         plt.text(x_min + 0.05*fac, 3.84 + 0.1, '95% C.L.', fontsize=18)
         plt.text(0.03, 0.97, line1, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
@@ -328,11 +343,6 @@ if __name__ == "__main__" :
 
     def run_single_limit(feature, version, category, ch):
 
-        if "boosted" in category:        cat_name = r"Boosted"
-        elif "resolved_1b" in category:  cat_name = r"Res 1b"
-        elif "resolved_2b" in category:  cat_name = r"Res 2b"
-        else:                            cat_name = "category"
-
         r_range = get_r_range(feature, "single", category)
 
         ch_dir = maindir + f'/{version}/{prd}/{feature}/{category}/{ch}'
@@ -353,7 +363,7 @@ if __name__ == "__main__" :
 
         fig = plt.figure(figsize=(10, 10))
         plt.plot(x, y, label='Data', color='red', linewidth=3)
-        SetStyle(fig, x, y, cat_name, dict_ch_name[ch])
+        SetStyle(fig, x, y, GetCat(category), dict_ch_name[ch])
         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.png")
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.pdf")
@@ -477,11 +487,6 @@ if __name__ == "__main__" :
                 for version in versions:
                     for category in categories:
 
-                        if "boosted" in category:        cat_name = r"Boosted"
-                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                        else:                            cat_name = category
-
                         fig = plt.figure(figsize=(10, 10))
                         cmap = plt.get_cmap('tab10')
                         for i, ch in enumerate(channels):
@@ -495,7 +500,7 @@ if __name__ == "__main__" :
                         x_stat, y_stat = GetDeltaLL(LS_file)
                         plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                         plt.legend(loc='upper right', fontsize=18, frameon=True)
-                        SetStyle(fig, x, y, cat_name, "", 8)
+                        SetStyle(fig, x, y, GetCat(category), "", 8)
                         WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/higgsCombineTest.Significance.mH120.root')
                         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.png')
@@ -577,10 +582,7 @@ if __name__ == "__main__" :
                     for i, category in enumerate(categories):
                         LS_file = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/higgsCombineTest.MultiDimFit.mH120.root'
                         x, y = GetDeltaLL(LS_file)
-                        if "boosted" in category:        cat_name = r"Boosted"
-                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                        plt.plot(x, y, label=cat_name, linewidth=3, color=cmap(i))
+                        plt.plot(x, y, label=GetCat(category), linewidth=3, color=cmap(i))
                     LS_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.MultiDimFit.mH120.root'
                     x, y = GetDeltaLL(LS_file)
                     plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
@@ -732,7 +734,7 @@ if __name__ == "__main__" :
             prefix_cmd = "combine "
         else: # weird things happen
             prefix_cmd = "combineTool.py --split-points 5 --job-mode=interactive --parallel=20 "
-        cmd = prefix_cmd + f'-M MultiDimFit model.root --algo=grid --points 100 {r_range} --preFitValue 1 {run_blind} &>multiDimFit_grid.log'
+        cmd = prefix_cmd + f'-M MultiDimFit model.root --algo=grid --X-rtd MINIMIZER_no_analytic --points 100 {r_range} --preFitValue 1 {run_blind} &>multiDimFit_grid.log'
         run_cmd(cmd, run)
         cmd = f'combine -M Significance FullRun2_{o_name}_{feature}_os_iso.txt {run_blind} &> Significance_{feature}.log'
         run_cmd(cmd, run)
@@ -810,7 +812,7 @@ if __name__ == "__main__" :
                 x_stat, y_stat = GetDeltaLL(LS_file)
                 plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
                 plt.legend(loc='upper right', fontsize=18, frameon=True)
-                SetStyle(fig, x, y, fancy_name, "", 8, crossing=True)
+                SetStyle(fig, x, y, GetProc(version), "", 8, crossing=True)
                 WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_{o_name}/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/DeltaNLL_FullRun2_{o_name}.png')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/DeltaNLL_FullRun2_{o_name}.pdf')
@@ -923,18 +925,20 @@ if __name__ == "__main__" :
             # Plot with all years and ZbbHtt/ZttHbb
             fig = plt.figure(figsize=(10, 10))
             cmap = plt.get_cmap('tab10')
+            h = int(len(versions)/2)
             for i, version in enumerate(versions):
                 LS_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.MultiDimFit.mH120.root'
                 x, y = GetDeltaLL(LS_file)
-                plt.plot(x, y, label=GetPlotYear(version), linewidth=3, color=cmap(i))
+                linestyle = '-' if GetProcName(version) == 'ZbbHtt' else '--'
+                plt.plot(x, y, label=f'{GetProc(version)} {GetPlotYear(version)}', linewidth=3, linestyle=linestyle, color=cmap(i%h))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
             x, y = GetDeltaLL(LS_file)
-            plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
+            plt.plot(x, y, label='Combination', linewidth=3, color=cmap(h+3))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombine.scan.with_syst.statonly_correct.MultiDimFit.mH120.root'
             x_stat, y_stat = GetDeltaLL(LS_file)
-            plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
+            plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(h+3))
             plt.legend(loc='upper right', fontsize=18, frameon=True)
-            SetStyle(fig, x, y, fancy_name, "", 8)
+            SetStyle(fig, x, y, "$ZH \\rightarrow bb\\tau\\tau$", "", 8)
             WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_allYears.png')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_allYears.pdf')
@@ -946,15 +950,15 @@ if __name__ == "__main__" :
             for i, version in enumerate(["ZbbHtt", "ZttHbb"]):
                 LS_file = maindir + f'/FullRun2_{version}/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
                 x, y = GetDeltaLL(LS_file)
-                plt.plot(x, y, label=GetPlotYear(version), linewidth=3, color=cmap(i))
+                plt.plot(x, y, label=GetProc(version), linewidth=3, color=cmap(h+i))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.MultiDimFit.mH120.root'
             x, y = GetDeltaLL(LS_file)
-            plt.plot(x, y, label='Combination', linewidth=3, color=cmap(i+1))
+            plt.plot(x, y, label='Combination', linewidth=3, color=cmap(h+3))
             LS_file = maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombine.scan.with_syst.statonly_correct.MultiDimFit.mH120.root'
             x_stat, y_stat = GetDeltaLL(LS_file)
-            plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(i+1))
+            plt.plot(x_stat, y_stat, label='Stat-only', linewidth=3, linestyle='--', color=cmap(h+3))
             plt.legend(loc='upper right', fontsize=18, frameon=True)
-            SetStyle(fig, x, y, fancy_name, "", 8)
+            SetStyle(fig, x, y, "$ZH \\rightarrow bb\\tau\\tau$", "", 8)
             WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/FullRun2_ZHComb/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_summary.png')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/DeltaNLL_FullRun2_ZHComb_summary.pdf')
