@@ -32,6 +32,11 @@ python3 RunAsymptoticLimits.py --ver ul_2016_HIPM_ZttHbb_v12,ul_2016_ZttHbb_v12,
     --feat dnn_ZttHbb_kl_1 --featureDependsOnMass --prd prod_... --grp datacard_ztthbb_res \
     --mass ... \
     --move_eos --user_eos cuisset
+
+If the fit didn't converge, it's because either it's very sensitive or it's not sensitive at all
+case 1) add --rAbsAcc=0.00005
+case 2) add --rMin 0 --rMax 1000000000
+
 '''
 
 # comb_options = '--minimizerAlgo Minuit2'
@@ -52,6 +57,12 @@ def GetCatShort(category):
     if 'resolved_1b' in category: cat = 'res1b'
     if 'resolved_2b' in category: cat = 'res2b'
     if 'boosted' in category: cat = 'boosted'
+    return cat
+
+def GetCat(category):
+    if 'resolved_1b' in category: cat = 'Res 1b'
+    if 'resolved_2b' in category: cat = 'Res 2b'
+    if 'boosted' in category: cat = 'Boosted'
     return cat
 
 def GetYear(version):
@@ -217,7 +228,7 @@ if __name__ == "__main__" :
         plt.title("")
         plt.ylim(0.003,5*max(p2s_t))
         plt.grid(True, zorder = 4)
-        plt.legend(loc='upper right', fontsize=18, frameon=True)
+        plt.legend(loc='lower right', fontsize=18, frameon=True)
         plt.yscale('log')
         ax = plt.gca()
         ax.set_axisbelow(False)
@@ -368,12 +379,11 @@ if __name__ == "__main__" :
             for version in versions:
                 for category in categories:
 
-                    if "boosted" in category:        cat_name = r"Boosted"
-                    elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                    elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                    else:                            cat_name = category
-
                     for channel in channels:
+
+                        for mass in mass_points:
+                            SaveResults(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}', mass)
+
                         limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/limits.json'
                             for mass in mass_points]
                         print(limit_file_list)
@@ -388,12 +398,21 @@ if __name__ == "__main__" :
                             color = '#FFDF7Fff', label = "68% expected", zorder=2)
                         plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                             color = '#85D1FBff', label = "95% expected", zorder=1)
-                        SetStyle(p2s_t, x_axis, process_tex, version, line1=cat_name+"\n"+dict_ch_name[channel])
+                        SetStyle(p2s_t, x_axis, process_tex, version, line1=GetCat(category)+"\n"+dict_ch_name[channel])
                         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.png')
                         plt.close()
+
+                        out_json = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.json'
+                        merged_data = {}
+                        for file_path in limit_file_list: 
+                            with open(file_path, 'r') as f:
+                                data = json.load(f)
+                                merged_data.update(data)
+                        with open(out_json, 'w') as out_file:
+                            json.dump(merged_data, out_file, indent=4)
 
     ##########################################################
     # RUN COMBINATION OF CHANNELS
@@ -471,10 +490,8 @@ if __name__ == "__main__" :
                 for version in versions:
                     for category in categories:
 
-                        if "boosted" in category:        cat_name = r"Boosted"
-                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                        else:                            cat_name = category
+                        for mass in mass_points:
+                            SaveResults(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}', mass)
 
                         limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                             for mass in mass_points]
@@ -490,11 +507,20 @@ if __name__ == "__main__" :
                             color = '#FFDF7Fff', label = "68% expected", zorder=2)
                         plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                             color = '#85D1FBff', label = "95% expected", zorder=1)
-                        SetStyle(p2s_t, x_axis, process_tex, version, line1=cat_name)
+                        SetStyle(p2s_t, x_axis, process_tex, version, line1=GetCat(category))
                         ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
+
+                        out_json = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.json'
+                        merged_data = {}
+                        for file_path in limit_file_list: 
+                            with open(file_path, 'r') as f:
+                                data = json.load(f)
+                                merged_data.update(data)
+                        with open(out_json, 'w') as out_file:
+                            json.dump(merged_data, out_file, indent=4)
 
                         cmap = plt.get_cmap('tab10')
                         for i, channel in enumerate(channels):
@@ -502,7 +528,7 @@ if __name__ == "__main__" :
                                 for mass in mass_points]
                             mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                             plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {dict_ch_name[channel]}", zorder=3, color=cmap(i))
-                        plt.legend(loc='upper right', fontsize=18, frameon=True)
+                        plt.legend(loc='lower right', fontsize=18, frameon=True)
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
@@ -580,6 +606,9 @@ if __name__ == "__main__" :
             for feature in features:
                 for version in versions:
 
+                    for mass in mass_points:
+                        SaveResults(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}', mass)
+
                     limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
@@ -596,31 +625,36 @@ if __name__ == "__main__" :
                         color = '#85D1FBff', label = "95% expected", zorder=1)
                     SetStyle(p2s_t, x_axis, process_tex, version)
                     ver_short = version.split("ul_")[1].split("_Z")[0]
-                    try:
-                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
-                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
-                    except ValueError:
-                        pass # Math domain error due log scale
+                    if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                    else:                  plt.ylim(0.01,1000)
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
                     # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
+
+                    out_json = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.json'
+                    merged_data = {}
+                    for file_path in limit_file_list: 
+                        with open(file_path, 'r') as f:
+                            data = json.load(f)
+                            merged_data.update(data)
+                    with open(out_json, 'w') as out_file:
+                        json.dump(merged_data, out_file, indent=4)
 
                     cmap = plt.get_cmap('tab10')
                     for i, category in enumerate(categories):
 
-                        if "boosted" in category:        cat_name = r"Boosted"
-                        elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                        elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                        else:                            cat_name = category
-
                         limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                             for mass in mass_points]
                         mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {cat_name}", zorder=3, color=cmap(i))
-                    plt.legend(loc='upper right', fontsize=18, frameon=True)
-                    try:
-                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
-                        plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
-                    except ValueError:
-                        pass # Math domain error due log scale
+                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {GetCat(category)}", zorder=3, color=cmap(i))
+                    plt.legend(loc='lower right', fontsize=18, frameon=True)
+                    if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                    else:                  plt.ylim(0.01,1000)
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
+                    plt.xscale('log')
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split_logx.pdf')
+                    plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split_logx.png')                    
                     # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
                     plt.close()
 
@@ -700,6 +734,8 @@ if __name__ == "__main__" :
                 plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                     color = '#85D1FBff', label = "95% expected", zorder=1)
                 SetStyle(p2s_t, x_axis, process_tex, version)
+                if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                else:                  plt.ylim(0.01,1000)
                 ver_short = version.split("ul_")[1].split("_Z")[0]
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
@@ -708,20 +744,26 @@ if __name__ == "__main__" :
                 cmap = plt.get_cmap('tab10')
                 for i, category in enumerate(categories):
 
-                    if "boosted" in category:        cat_name = r"Boosted"
-                    elif "resolved_1b" in category:  cat_name = r"Res 1b"
-                    elif "resolved_2b" in category:  cat_name = r"Res 2b"
-                    else:                            cat_name = category
-
                     limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {cat_name}", zorder=3, color=cmap(i))
-                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {GetCat(category)}", zorder=3, color=cmap(i))
+                plt.legend(loc='lower right', fontsize=18, frameon=True)
+                if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                else:                  plt.ylim(0.01,1000)
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
                 # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
                 plt.close()
+
+                out_json = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf'
+                merged_data = {}
+                for file_path in limit_file_list: 
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                        merged_data.update(data)
+                with open(out_json, 'w') as out_file:
+                    json.dump(merged_data, out_file, indent=4)
 
     ##########################################################
     # RUN COMBINATION OF YEARS
@@ -758,7 +800,7 @@ if __name__ == "__main__" :
 
         if options.only_cards: return True
 
-        cmd = f'combine -M AsymptoticLimits FullRun2_{o_name}_{feature}_os_iso.txt --run blind --noFitAsimov {comb_options} &> combine.log'
+        cmd = f'combine -M AsymptoticLimits FullRun2_{o_name}_{feature}_os_iso.txt --run blind --noFitAsimov {comb_options} --rAbsAcc=0.00005 &> combine.log'
         if run: os.chdir(combdir)
         if run: run_cmd(cmd, check=False)
 
@@ -772,9 +814,9 @@ if __name__ == "__main__" :
 
                 cmd = f'text2workspace.py FullRun2_{o_name}_{feature}_os_iso.txt -o model.root &> text2workspace.log'
                 run_cmd(cmd, run)
-                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' 
+                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 --doInitialFit --robustFit 1 --parallel 50 ' 
                 run_cmd(cmd, run)
-                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'
+                cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 --doFits --robustFit 1 --parallel 50'
                 run_cmd(cmd, run)
                 cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts.json --parallel 50'
                 run_cmd(cmd, run)
@@ -783,9 +825,9 @@ if __name__ == "__main__" :
                 if run: run_cmd('mkdir -p impacts')
                 if run: run_cmd('mv higgsCombine_paramFit* higgsCombine_initialFit* impacts')
 
-            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doInitialFit --robustFit 1 --parallel 50 ' +  r" --exclude 'rgx{prop_bin.+}'"
+            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 --doInitialFit --robustFit 1 --parallel 50 ' +  r" --exclude 'rgx{prop_bin.+}'"
             run_cmd(cmd, run)
-            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 {r_range_setPR} --doFits --robustFit 1 --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
+            cmd = f'combineTool.py -M Impacts -d model.root -m 125 --expectSignal 1 -t -1 --preFitValue 1 --doFits --robustFit 1 --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
             run_cmd(cmd, run)
             cmd = 'combineTool.py -M Impacts -d model.root -m 125 -o impacts_noMCstats.json --parallel 50'+  r" --exclude 'rgx{prop_bin.+}'"
             run_cmd(cmd, run)
@@ -822,6 +864,9 @@ if __name__ == "__main__" :
 
             for feature in features:
 
+                for mass in mass_points:
+                    SaveResults(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}', mass)
+
                 limit_file_list = [maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}/limits.json'
                     for mass in mass_points]
                 mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
@@ -844,6 +889,8 @@ if __name__ == "__main__" :
                 plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                     color = '#85D1FBff', label = "95% expected", zorder=1)
                 SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
+                if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                else:                  plt.ylim(0.01,1000)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
                 # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
@@ -855,11 +902,23 @@ if __name__ == "__main__" :
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                     plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {ver_short}", zorder=3, color=cmap(i))
-                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                plt.legend(loc='lower right', fontsize=18, frameon=True)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.pdf')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
+                plt.xscale('log')
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split_logx.pdf')
+                plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split_logx.png')
                 # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
                 plt.close()
+
+                out_json = maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf'
+                merged_data = {}
+                for file_path in limit_file_list: 
+                    with open(file_path, 'r') as f:
+                        data = json.load(f)
+                        merged_data.update(data)
+                with open(out_json, 'w') as out_file:
+                    json.dump(merged_data, out_file, indent=4)
 
     if options.move_eos:
 
