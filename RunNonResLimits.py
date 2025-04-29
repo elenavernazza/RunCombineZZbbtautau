@@ -226,7 +226,8 @@ if __name__ == "__main__" :
         plt.text(x_min + 0.05*fac, 1 + 0.1, '68% C.L.', fontsize=18)
         plt.text(x_min + 0.05*fac, 3.84 + 0.1, '95% C.L.', fontsize=18)
         plt.text(0.03, 0.97, line1, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
-        plt.text(0.03, 0.92, line2, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+        plt.text(0.03, 0.92, "In the assumption of SM production", fontsize=18, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+        plt.text(0.03, 0.88, line2, ha="left", va="top", transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
         mplhep.cms.label(data=False)
         plt.xlabel('$\\mu$')
         plt.ylabel('-2 $\\Delta LL$')
@@ -265,7 +266,7 @@ if __name__ == "__main__" :
         else:           mu = f'{central:.{round}f}'
         text = fr"$\mu = {mu}^{{+{up_syst:.{round}f}}}_{{-{down_syst:.{round}f}}}(syst)^{{+{up_stat:.{round}f}}}_{{-{down_stat:.{round}f}}}(stat)$"
         if sig: text += f"\nSignificance = {sig:.2f}$\sigma$"
-        plt.text(0.03, 0.91, text, ha='left', va='top', transform=plt.gca().transAxes, fontsize='small',
+        plt.text(0.03, 0.87, text, ha='left', va='top', transform=plt.gca().transAxes, fontsize='small',
             bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
     
     def GetDeltaLL(LS_file):
