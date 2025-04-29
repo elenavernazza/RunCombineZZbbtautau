@@ -3,16 +3,20 @@ import ROOT
 import numpy as np
 ROOT.gROOT.SetBatch(True)
 
+#######################################################################
+######################### SCRIPT BODY #################################
+#######################################################################
+
 if __name__ == "__main__" :
 
     from optparse import OptionParser
     parser = OptionParser()
-    parser.add_option("--config", help="Configuration name (ex : ul_2018_ZZ_v12)")
-    parser.add_option("--mass",    dest="mass",     default='200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,2000,3000')
-    parser.add_option("--feat",    dest="feat",     default='ZZKinFit_mass')
+    parser.add_option("--config",   help="Configuration name (ex : ul_2018_ZZ_v12)")
+    parser.add_option("--mass",     dest="mass",     default='200,300,400,500,600,700,800,900,1000,1100,1200,1300,1400,1500,2000,3000')
+    parser.add_option("--feat",     dest="feat",     default='ZZKinFit_mass')
+    parser.add_option("--ver",      dest="ver",      default='prod_231129')
+    parser.add_option("--ch",       dest="ch",       default='combination')
     parser.add_option("--featureDependsOnMass", help="Add _$MASS to name of feature for each mass -> for parametrized DNN", action="store_true", default=False)
-    parser.add_option("--ver",     dest="ver",      default='prod_231129')
-    parser.add_option("--ch",      dest="ch",       default='combination')
     (options, args) = parser.parse_args()
 
     if ',' in options.mass:
@@ -40,17 +44,17 @@ if __name__ == "__main__" :
 
     for dir, mass_fromDir in zip(dirs, mass_points):
         feat_ver = f'{feat}_{mass_fromDir}' if options.featureDependsOnMass else feat
-        limit_file = maindir + f'/{options.config}/{dir}/{ch}/{feat_ver}/limits.json'
+        limit_file = maindir + f'/{ch}/{feat_ver}/limits.json'
         with open(limit_file, 'r') as json_file:
             mass_dict = json.load(json_file)
-        m = list(mass_dict.keys())[0]
-        assert mass_fromDir == m
+        m = list(mass_dict.keys())[0].split("_M")[1]
+        first_key = list(mass_dict.keys())[0]
         mass.append(m)
-        exp.append(mass_dict[m]['exp'])
-        m1s_t.append(mass_dict[m]['m1s_t'])
-        p1s_t.append(mass_dict[m]['p1s_t'])
-        m2s_t.append(mass_dict[m]['m2s_t'])
-        p2s_t.append(mass_dict[m]['p2s_t'])
+        exp.append(mass_dict[first_key]['exp'])
+        m1s_t.append(mass_dict[first_key]['m1s_t'])
+        p1s_t.append(mass_dict[first_key]['p1s_t'])
+        m2s_t.append(mass_dict[first_key]['m2s_t'])
+        p2s_t.append(mass_dict[first_key]['p2s_t'])
 
     mass  = np.array(mass, dtype=float)
     exp   = np.array(exp, dtype=float)
@@ -174,6 +178,6 @@ if __name__ == "__main__" :
 
     legend.Draw()
 
-    save_name = maindir + f'/{options.config}/Limits_'+feat+'_'+ver+'_'+ch
+    save_name = maindir + f'/Limits_'+feat+'_'+ver+'_'+ch
     canvas.SaveAs(save_name+'.png')
     canvas.SaveAs(save_name+'.pdf')

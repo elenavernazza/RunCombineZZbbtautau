@@ -56,7 +56,7 @@ def GetCat(category):
     return cat
 
 def GetYear(version):
-    return version.split("ul_")[1].split("_Z")[0]
+    return version.split("bul_")[1].split("_Z")[0]
 
 def GetPlotYear(version):
     if '2016_HIPM' in version: return '2016 HIPM'
@@ -149,47 +149,58 @@ if __name__ == "__main__" :
         run_blind = ''
 
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
-    maindir = os.getcwd() + f'/NonRes{options.num}/'
+    maindir = os.getcwd().replace("/grid_mnt/data__data.polcms/", "/data_CMS/") + f'/NonRes{options.num}/'
 
     if "ZZ" in options.ver:
         o_name = 'ZZbbtt'
-        def get_r_range(feature, comb_type, channel, setPR=False):
-            return "--rMin 0 --rMax 2"
-        def get_r_range_setPR(feature, comb_type, channel, setPR=False):
-            return "--setParameterRanges r=0,2"
-    else: 
-        if "ZbbHtt" in options.ver:
-            o_name = 'ZbbHtt'
-        elif "ZttHbb" in options.ver:
-            o_name = 'ZttHbb'
         d_DNN = {
-            "single_re1b" : (-40., 45),
-            "single" : (-20., 25),
-            "channel_res1b" : (-30., 35),
-            "channel" : (-10., 15.),
-            "category" : (-2.5, 5,5),
+            "single_re1b" : (-20, 20.),
+            "single" : (-20, 20.),
+            "channel_res1b" : (-20, 20.),
+            "channel" : (-20, 20.),
+            "category" : (-10, 10.),
             "year" : (-2, 4.)
         }
-        d_KinFit = {
-            "single" : (-100., 100.),
-            None : (-50., 50.)
+    elif "ZbbHtt" in options.ver:
+        o_name = 'ZbbHtt'
+        d_DNN = {
+            "single_re1b" : (-50, 50.),
+            "single" : (-50, 50.),
+            "channel_res1b" : (-50, 50.),
+            "channel" : (-30, 30.),
+            "category" : (-30, 30.),
+            "year" : (-30, 30.)
         }
-        def get_r_range(feature, comb_type, category, setPR=False):
-            if "KinFit" in feature:
-                d = d_KinFit
-            else:
-                d = d_DNN
+    elif "ZttHbb" in options.ver:
+        o_name = 'ZttHbb'
+        d_DNN = {
+            "single_re1b" : (-50, 50.),
+            "single" : (-50, 50.),
+            "channel_res1b" : (-50, 50.),
+            "channel" : (-30, 30.),
+            "category" : (-30, 30.),
+            "year" : (-30, 30.)
+        }
+    d_KinFit = {
+        "single" : (-100., 100.),
+        None : (-50., 50.)
+    }
+    def get_r_range(feature, comb_type, category, setPR=False):
+        if "KinFit" in feature:
+            d = d_KinFit
+        else:
+            d = d_DNN
+        try:
+            t = d[comb_type + "_" + GetCatShort(category)]
+        except (KeyError, TypeError):
             try:
-                t = d[comb_type + "_" + GetCatShort(category)]
-            except (KeyError, TypeError):
-                try:
-                    t = d[comb_type]
-                except KeyError:
-                    t = d[None]
-            if setPR:
-                return f"--setParameterRanges r={t[0]},{t[1]}"
-            else:
-                return f"--rMin {t[0]} --rMax {t[1]}"
+                t = d[comb_type]
+            except KeyError:
+                t = d[None]
+        if setPR:
+            return f"--setParameterRanges r={t[0]},{t[1]}"
+        else:
+            return f"--rMin {t[0]} --rMax {t[1]}"
 
 
     dict_ch_name = {"etau": "$\\tau_{e}\\tau_{h}$", "mutau": "$\\tau_{\\mu}\\tau_{h}$", "tautau": "$\\tau_{h}\\tau_{h}$"}
@@ -198,10 +209,17 @@ if __name__ == "__main__" :
         plt.axhline(y=1, color='gray', linestyle='--', linewidth=2)
         plt.axhline(y=3.84, color='gray', linestyle='--', linewidth=2)
         x_min = x[0]; x_max = x[-1]
+        # x_min = -15; x_max=25
+        if "ZZ" in options.ver: x_min = -13; x_max=15
+        if "ZbbHtt" in options.ver: x_min = -15; x_max=25
+        if "ZttHbb" in options.ver: x_min = -15; x_max=25
+        if "ZbbHtt" in options.ver and "ZttHbb" in options.ver: x_min = -10; x_max=12
         if crossing:
             x_min = x[0]; x_max = x[-1]
-            # x_min=-2; x_max=4
-            x_min=-2; x_max=4
+            if "ZZ" in options.ver: x_min = -2; x_max=4
+            if "ZbbHtt" in options.ver: x_min = -10; x_max=12
+            if "ZttHbb" in options.ver: x_min = -10; x_max=12
+            # x_min=-2; x_max=20
             # x_min = GetCrossings(x, y, 8)[0] - 2 
             # x_max = GetCrossings(x, y, 8)[1] + 2 
         fac = 1 + 9*((x[-1]-x[0])>5)
@@ -230,7 +248,9 @@ if __name__ == "__main__" :
 
     def WriteResults (fig, x, y, x_stat, y_stat, sig_file, sig=True, round = 2):
 
-        target = 3.84
+        # print(f"{[[x_i,y_i] for x_i,y_i in zip(x,y)]}")
+        # print(f"{[[x_i,y_i] for x_i,y_i in zip(x_stat,y_stat)]}")
+        target = 1
         central = x[np.argmin(y)]
         down = np.abs(GetCrossings(x, y, target)[0]-central)
         up = np.abs(GetCrossings(x, y, target)[1]-central)
@@ -291,7 +311,7 @@ if __name__ == "__main__" :
 
         if any("2016_Z" in s for s in versions) and any("2016_HIPM_Z" in s for s in versions):
         
-            prefix = "ul_"
+            prefix = "bul_"
             suffix = "_Z" + versions[0].split("_Z")[1]
             v_2016 = prefix + "2016" + suffix
             v_2016_HIPM = prefix + "2016_HIPM" + suffix
@@ -306,7 +326,7 @@ if __name__ == "__main__" :
                 cmd = f'combineCards.py'
                 for version in [v_2016, v_2016_HIPM]:
                     year_file = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/{version}_{category}_{feature}_{grp}_{channel}_os_iso.txt'
-                    year = version.split("ul_")[1].split("_Z")[0]
+                    year = version.split("bul_")[1].split("_Z")[0]
                     cmd += f' Y{year}={year_file}'
                     cmd += f' > {v_combined}_{category}_{feature}_{grp}_{channel}_os_iso.txt'
                 if run: os.chdir(combdir)
@@ -364,7 +384,7 @@ if __name__ == "__main__" :
         fig = plt.figure(figsize=(10, 10))
         plt.plot(x, y, label='Data', color='red', linewidth=3)
         SetStyle(fig, x, y, GetCat(category), dict_ch_name[ch])
-        ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
+        ver_short = version.split("bul_")[1].split("_Z")[0] ; cat_short = category.split("cat_ZZ_EC90_")[1]
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.png")
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.pdf")
         plt.close()
@@ -502,7 +522,7 @@ if __name__ == "__main__" :
                         plt.legend(loc='upper right', fontsize=18, frameon=True)
                         SetStyle(fig, x, y, GetCat(category), "", 8)
                         WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/higgsCombineTest.Significance.mH120.root')
-                        ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
+                        ver_short = version.split("bul_")[1].split("_Z")[0] ; cat_short = category.split("cat_ZZ_EC90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.png')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.pdf')
                         plt.close()
@@ -592,7 +612,7 @@ if __name__ == "__main__" :
                     plt.legend(loc='upper right', fontsize=18, frameon=True)
                     SetStyle(fig, x, y, GetPlotYear(version), "", 8)
                     WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/Combination_Cat/higgsCombineTest.Significance.mH120.root')
-                    ver_short = version.split("ul_")[1].split("_Z")[0]
+                    ver_short = version.split("bul_")[1].split("_Z")[0]
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/DeltaNLL_{ver_short}.png')
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/DeltaNLL_{ver_short}.pdf')
                     plt.close()
@@ -696,7 +716,7 @@ if __name__ == "__main__" :
                     plt.legend(loc='upper right', fontsize=18, frameon=True)
                     SetStyle(fig, x, y, "ZH Combination", "", 8)
                     WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version_comb}/{prd}/{feature}/higgsCombineTest.Significance.mH120.root')
-                    ver_short = version.split("ul_")[1].split("_Z")[0]
+                    ver_short = version.split("bul_")[1].split("_Z")[0]
                     plt.savefig(maindir + f'/{version_comb}/{prd}/{feature}/DeltaNLL_{ver_short}.png')
                     plt.savefig(maindir + f'/{version_comb}/{prd}/{feature}/DeltaNLL_{ver_short}.pdf')
                     plt.close()
@@ -832,12 +852,12 @@ if __name__ == "__main__" :
         cmd = f'combineCards.py'
         versions_ZbbHtt, versions_ZttHbb = split_versions_ZH()
         for version in versions_ZbbHtt:
-            year = version.split("ul_")[1].split("_Z")[0]
+            year = version.split("bul_")[1].split("_Z")[0]
             ver_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/{version}_{feature}_os_iso.txt'
             if os.path.exists(ver_file):
                 cmd += f' Y{year}_ZbbHtt={ver_file}'
         for version in versions_ZttHbb:
-            year = version.split("ul_")[1].split("_Z")[0]
+            year = version.split("bul_")[1].split("_Z")[0]
             ver_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/{version}_{feature}_os_iso.txt'
             if os.path.exists(ver_file):
                 cmd += f' Y{year}_ZttHbb={ver_file}'
@@ -982,7 +1002,7 @@ if __name__ == "__main__" :
             run_cmd(f'cp ' + maindir + f'/FullRun2_{o_name}/{prd}/{feature}/*_os_iso.txt TMP_RESULTS_NONRES')
             run_cmd(f'cp ' + maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Impacts* TMP_RESULTS_NONRES')
             for version in versions:
-                ver_short = version.split("ul_")[1].split("_Z")[0]
+                ver_short = version.split("bul_")[1].split("_Z")[0]
                 run_cmd(f'mkdir -p TMP_RESULTS_NONRES/{ver_short} && cp index.php TMP_RESULTS_NONRES/{ver_short}')
                 run_cmd(f'cp ' + maindir + f'/{version}/{prd}/{feature}/Combination_Cat/DeltaNLL*.p* TMP_RESULTS_NONRES/{ver_short}')
                 for category in categories:
@@ -1001,7 +1021,7 @@ if __name__ == "__main__" :
             versions_ZbbHtt, versions_ZttHbb = split_versions_ZH()
             for version in versions_ZbbHtt:
                 version_comb = version_ZbbHtt.replace("ZbbHtt", "ZHComb")
-                ver_short = version.split("ul_")[1].split("_Z")[0]
+                ver_short = version.split("bul_")[1].split("_Z")[0]
                 run_cmd(f'cp ' + maindir + f'/{version}/{prd}/{feature}/DeltaNLL*.p* TMP_RESULTS_NONRES/{ver_short}')
             run_cmd(f'rsync -rltv TMP_RESULTS_NONRES/* {user}@lxplus.cern.ch:{eos_dir}')
             run_cmd(f'rm -r TMP_RESULTS_NONRES')

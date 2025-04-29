@@ -4,3 +4,7 @@ Datacards*
 DeltaNLL*
 ResLimits*/
 prod_*/
+*.root
+*.png
+*.pdf
+Test*

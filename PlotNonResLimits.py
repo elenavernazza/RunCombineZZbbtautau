@@ -25,6 +25,12 @@ def GetLegend(x, y, x_stat, y_stat, round=3):
     down_syst = np.round(np.sqrt(min_1sigma**2 - min_1sigma_stat**2), round)
     return r, up, down, up_stat, down_stat, up_syst, down_syst
 
+'''
+python3 PlotNonResLimits.py --ver ul_2018_ZZ_v12 \
+    --cat cat_ZZ_elliptical_cut_90_resolved_1b,cat_ZZ_elliptical_cut_90_resolved_2b,cat_ZZ_elliptical_cut_90_boosted_noPNet \
+    --feat dnn_ZZbbtt_kl_1 --prd prod_240523 --grp datacard_zz
+'''
+
 #######################################################################
 ######################### SCRIPT BODY #################################
 #######################################################################
@@ -36,10 +42,10 @@ if __name__ == "__main__" :
     parser.add_option("--run",     dest="run",      default=True)
     parser.add_option("--ver",     dest="ver",      default='')
     parser.add_option("--cat",     dest="cat",      default='')
-    parser.add_option("--channels", dest="channels", default="etau,mutau,tautau")
     parser.add_option("--prd",     dest="prd",      default='')
     parser.add_option("--feat",    dest="feat",     default='dnn_ZZbbtt_kl_1')
     parser.add_option("--grp",     dest="grp",      default='datacard_zz')
+    parser.add_option("--channels", dest="channels", default="etau,mutau,tautau")
     (options, args) = parser.parse_args()
 
     if ',' in options.ver:
@@ -72,7 +78,13 @@ if __name__ == "__main__" :
     prd = options.prd
     grp = options.grp
     run = int(options.run) == 1
-    basedir = os.getcwd()
+
+    if os.environ["USER"] == 'evernazza':
+        cmtdir = '/data_CMS/cms/' + os.environ["USER"][1:] + '/cmt/CreateDatacards/'
+    else:
+        cmtdir = '/data_CMS/cms/' + os.environ["USER"] + '/cmt/CreateDatacards/'
+        
+    maindir = os.getcwd()
 
     for feature in features:
 
@@ -89,16 +101,9 @@ if __name__ == "__main__" :
             root_list = []
             LS_file_comb_list = []
 
-            
-
-            if os.environ["USER"] == 'evernazza':
-                cmtdir = '/data_CMS/cms/' + os.environ["USER"][1:] + '/cmt/CreateDatacards/'
-            else:
-                cmtdir = '/data_CMS/cms/' + os.environ["USER"] + '/cmt/CreateDatacards/'
-
             for category in categories:
 
-                combdir = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/Combination'
+                combdir = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/Combination'
                 print(" ### INFO: Saving combination in ", combdir)
                 if run: os.system('mkdir -p ' + combdir)
                 etau_file = ''; mutau_file = ''; tautau_file = ''
@@ -170,7 +175,7 @@ if __name__ == "__main__" :
                 #######################################################################
                 #######################################################################
 
-                LS_file_etau = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/etau/higgsCombineTest.MultiDimFit.mH120.root'
+                LS_file_etau = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/etau/higgsCombineTest.MultiDimFit.mH120.root'
                 if os.path.exists(LS_file_etau):
                     f_etau = ROOT.TFile(LS_file_etau)
                     limit_etau = f_etau.Get("limit")
@@ -180,7 +185,7 @@ if __name__ == "__main__" :
                     x_etau = np.array(np.ndarray((n_etau), 'd', limit_etau.GetV2())[1:])
                     y_etau = np.array(np.ndarray((n_etau), 'd', limit_etau.GetV1())[1:])
 
-                    LS_file = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/etau/higgsCombineTest.Significance.mH120.significance.root'
+                    LS_file = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/etau/higgsCombineTest.Significance.mH120.significance.root'
                     f = ROOT.TFile(LS_file)
                     limit = f.Get("limit")
                     limit.GetEntry(0)
@@ -191,7 +196,7 @@ if __name__ == "__main__" :
                     sig_etau = None
                     print("File not found:", LS_file_etau)
 
-                LS_file_mutau = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/mutau/higgsCombineTest.MultiDimFit.mH120.root'
+                LS_file_mutau = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/mutau/higgsCombineTest.MultiDimFit.mH120.root'
                 if os.path.exists(LS_file_mutau):
                     f_mutau = ROOT.TFile(LS_file_mutau)
                     limit_mutau = f_mutau.Get("limit")
@@ -201,7 +206,7 @@ if __name__ == "__main__" :
                     x_mutau = np.array(np.ndarray((n_mutau), 'd', limit_mutau.GetV2())[1:])
                     y_mutau = np.array(np.ndarray((n_mutau), 'd', limit_mutau.GetV1())[1:])
 
-                    LS_file = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/mutau/higgsCombineTest.Significance.mH120.significance.root'
+                    LS_file = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/mutau/higgsCombineTest.Significance.mH120.significance.root'
                     f = ROOT.TFile(LS_file)
                     limit = f.Get("limit")
                     limit.GetEntry(0)
@@ -212,7 +217,7 @@ if __name__ == "__main__" :
                     sig_mutau = None
                     print("File not found:", LS_file_mutau)
 
-                LS_file_tautau = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/tautau/higgsCombineTest.MultiDimFit.mH120.root'
+                LS_file_tautau = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/tautau/higgsCombineTest.MultiDimFit.mH120.root'
                 if os.path.exists(LS_file_tautau):
                     f_tautau = ROOT.TFile(LS_file_tautau)
                     limit_tautau = f_tautau.Get("limit")
@@ -222,7 +227,7 @@ if __name__ == "__main__" :
                     x_tautau = np.array(np.ndarray((n_tautau), 'd', limit_tautau.GetV2())[1:])
                     y_tautau = np.array(np.ndarray((n_tautau), 'd', limit_tautau.GetV1())[1:])
 
-                    LS_file = basedir + f'/NonRes/{version}/{prd}/{feature}/{category}/tautau/higgsCombineTest.Significance.mH120.significance.root'
+                    LS_file = maindir + f'/NonRes/{version}/{prd}/{feature}/{category}/tautau/higgsCombineTest.Significance.mH120.significance.root'
                     f = ROOT.TFile(LS_file)
                     limit = f.Get("limit")
                     limit.GetEntry(0)
@@ -365,7 +370,7 @@ if __name__ == "__main__" :
                 # print(GetLegend(x_tautau, y_tautau, x_tautau, y_tautau, round=5))
 
             # Combine all categories for same year
-            combdir_year = basedir + f'/NonRes/{version}/{prd}/{feature}/Combination'
+            combdir_year = maindir + f'/NonRes/{version}/{prd}/{feature}/Combination'
             os.system(f'mkdir -p {combdir_year}')
                 
             cmd = 'combineCards.py'
@@ -417,7 +422,7 @@ if __name__ == "__main__" :
         
         # combine all years for the same feature
             
-        combdir_run2 = basedir + f'/NonRes/FullRun2/{grp}/{prd}/{feature}/Combination'
+        combdir_run2 = maindir + f'/NonRes/FullRun2/{grp}/{prd}/{feature}/Combination'
         os.system(f'mkdir -p {combdir_run2}')
             
         cmd = 'combineCards.py'
