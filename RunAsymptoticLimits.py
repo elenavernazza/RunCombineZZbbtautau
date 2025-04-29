@@ -10,6 +10,8 @@ import warnings, logging
 warnings.filterwarnings("ignore", message=".*Type 3 font.*")
 logging.getLogger('matplotlib').setLevel(logging.ERROR)
 
+prefix = "bul_"
+
 # IF YOU ONLY NEED TO CHANGE THE PLOTTING STYLE, RUN WITH THE OPTION: --plot_only
 
 '''
@@ -57,17 +59,26 @@ def run_cmd(cmd, run=True, check=True):
 def GetCatShort(category):
     if 'resolved_1b' in category: cat = 'res1b'
     if 'resolved_2b' in category: cat = 'res2b'
-    if 'boosted' in category: cat = 'boosted'
+    if 'boosted_bb' in category or 'boosted_noPNet' in category: cat = 'boosted_bb'
+    if 'boostedTau' in category: cat = 'boosted_bb_tautau'
     return cat
 
 def GetCat(category):
     if 'resolved_1b' in category: cat = 'Res 1b'
     if 'resolved_2b' in category: cat = 'Res 2b'
-    if 'boosted' in category: cat = 'Boosted'
+    if 'boosted_bb' in category or 'boosted_noPNet' in category: cat = 'Boosted bb'
+    if 'boostedTau' in category: cat = 'Boosted bb & $\\tau\\tau$'
     return cat
 
 def GetYear(version):
-    return version.split("ul_")[1].split("_Z")[0]
+    return version.split(prefix)[1].split("_Z")[0]
+
+def GetPlotYear(version):
+    if '2016_HIPM' in version: return '2016 HIPM'
+    elif '2016' in version: return '2016'
+    elif '2017' in version: return '2017'
+    elif '2018' in version: return '2018'
+    else: sys.exit(f'ERROR: Year {version} not valid')
 
 #######################################################################
 ######################### SCRIPT BODY #################################
@@ -148,9 +159,9 @@ if __name__ == "__main__" :
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
     maindir = os.getcwd() + f'/Res{options.num}/'
 
-    if "ZZ" in options.ver:       o_name = 'ZZbbtt'; process_tex = r"$X\rightarrow ZZ\rightarrow bb\tau\tau$";   x_axis = r"$m_{X}$ [GeV]"
-    elif "ZbbHtt" in options.ver: o_name = 'ZbbHtt'; process_tex = r"$Z'\rightarrow ZH$";  x_axis = r"$m_{Z'}$ [GeV]" # \rightarrow bb\tau\tau
-    elif "ZttHbb" in options.ver: o_name = 'ZttHbb'; process_tex = r"$Z'\rightarrow ZH$"; x_axis = r"$m_{Z'}$ [GeV]" # \rightarrow \tau\tau bb
+    if "ZZ" in options.ver:       o_name = 'ZZbbtt'; process_tex = r"$X\rightarrow ZZ$";   x_axis = r"$m_{X}$ [GeV]"; spin = 0
+    elif "ZbbHtt" in options.ver: o_name = 'ZbbHtt'; process_tex = r"$Z'\rightarrow ZH$";  x_axis = r"$m_{Z'}$ [GeV]"; spin = 1 # \rightarrow bb\tau\tau
+    elif "ZttHbb" in options.ver: o_name = 'ZttHbb'; process_tex = r"$Z'\rightarrow ZH$"; x_axis = r"$m_{Z'}$ [GeV]"; spin = 1 # \rightarrow \tau\tau bb
 
     dict_ch_name = {"etau": "$\\tau_{e}\\tau_{h}$", "mutau": "$\\tau_{\\mu}\\tau_{h}$", "tautau": "$\\tau_{h}\\tau_{h}$"}
 
@@ -191,17 +202,21 @@ if __name__ == "__main__" :
 
     def GetLimits(limit_file_list):
         mass = []; exp = []; m1s_t = []; p1s_t = []; m2s_t = []; p2s_t = []
+        if "ZZ" in options.ver: 
+            print(" ### CAREFUL : Limits are divided by BR(ZZ->bbtt)")
+            BR = 100
+        else: BR = 1
         for limit_file in limit_file_list:
             try:
                 with open(limit_file, 'r') as json_file:
                     mass_dict = json.load(json_file)
                 first_key = list(mass_dict.keys())[0]
                 mass.append(float(first_key))
-                exp.append(mass_dict[first_key]['exp'])
-                m1s_t.append(mass_dict[first_key]['m1s_t'])
-                p1s_t.append(mass_dict[first_key]['p1s_t'])
-                m2s_t.append(mass_dict[first_key]['m2s_t'])
-                p2s_t.append(mass_dict[first_key]['p2s_t'])
+                exp.append(mass_dict[first_key]['exp']*BR)
+                m1s_t.append(mass_dict[first_key]['m1s_t']*BR)
+                p1s_t.append(mass_dict[first_key]['p1s_t']*BR)
+                m2s_t.append(mass_dict[first_key]['m2s_t']*BR)
+                p2s_t.append(mass_dict[first_key]['p2s_t']*BR)
             except FileNotFoundError:
                 print(f"## INFO : plot skipping non-existent limit file {limit_file}")
         return mass, exp, m1s_t, p1s_t, m2s_t, p2s_t
@@ -229,7 +244,7 @@ if __name__ == "__main__" :
         plt.title("")
         plt.ylim(0.003,5*max(p2s_t))
         plt.grid(True, zorder = 4)
-        plt.legend(loc='lower right', fontsize=18, frameon=True)
+        plt.legend(loc='upper right', fontsize=18, frameon=True)
         plt.yscale('log')
         ax = plt.gca()
         ax.set_axisbelow(False)
@@ -277,7 +292,6 @@ if __name__ == "__main__" :
 
         if any("2016_Z" in s for s in versions) and any("2016_HIPM_Z" in s for s in versions):
         
-            prefix = "ul_"
             suffix = "_Z" + versions[0].split("_Z")[1]
             v_2016 = prefix + "2016" + suffix
             v_2016_HIPM = prefix + "2016_HIPM" + suffix
@@ -294,7 +308,7 @@ if __name__ == "__main__" :
                 cmd = f'combineCards.py'
                 for version in [v_2016, v_2016_HIPM]:
                     year_file = maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/M{mass}/{version}_{category}_{feat_name}_{grp}_{channel}_os_iso.txt'
-                    year = version.split("ul_")[1].split("_Z")[0]
+                    year = version.split(prefix)[1].split("_Z")[0]
                     cmd += f' Y{year}={year_file}'
                     cmd += f' > {v_combined}_{category}_{feat_name}_{grp}_{channel}_os_iso.txt'
                 if run: os.chdir(combdir)
@@ -408,13 +422,13 @@ if __name__ == "__main__" :
                         #     continue
                         
                         fig, ax = plt.subplots(figsize=(12,10))
-                        plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                        plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
                         plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                             color = '#FFDF7Fff', label = "68% expected", zorder=2)
                         plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                             color = '#85D1FBff', label = "95% expected", zorder=1)
                         SetStyle(p2s_t, x_axis, process_tex, version, line1=GetCat(category)+"\n"+dict_ch_name[channel])
-                        ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
+                        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/{channel}/Limits_{ver_short}_{cat_short}_{channel}.png')
@@ -517,13 +531,13 @@ if __name__ == "__main__" :
                             continue
                         
                         fig, ax = plt.subplots(figsize=(12,10))
-                        plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                        plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
                         plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                             color = '#FFDF7Fff', label = "68% expected", zorder=2)
                         plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                             color = '#85D1FBff', label = "95% expected", zorder=1)
                         SetStyle(p2s_t, x_axis, process_tex, version, line1=GetCat(category))
-                        ver_short = version.split("ul_")[1].split("_Z")[0] ; cat_short = category.split("_cut_90_")[1]
+                        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}.png')
@@ -543,7 +557,7 @@ if __name__ == "__main__" :
                                 for mass in mass_points]
                             mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                             plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {dict_ch_name[channel]}", zorder=3, color=cmap(i))
-                        plt.legend(loc='lower right', fontsize=18, frameon=True)
+                        plt.legend(loc='upper right', fontsize=18, frameon=True)
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
@@ -575,7 +589,7 @@ if __name__ == "__main__" :
         #     return
         for category in categories:
             cat_file = maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/{version}_{feature}_{category}_os_iso.txt'
-            cat_short = category.split("_cut_90_")[1]
+            cat_short = category.split("90_")[1]
             cmd += f' {cat_short}={cat_file}'
         cmd += f' > {version}_{feature}_os_iso.txt'
         if run: os.chdir(combdir)
@@ -633,14 +647,17 @@ if __name__ == "__main__" :
                         continue
                     
                     fig, ax = plt.subplots(figsize=(12,10))
-                    plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                    plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
                     plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                         color = '#FFDF7Fff', label = "68% expected", zorder=2)
                     plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                         color = '#85D1FBff', label = "95% expected", zorder=1)
                     SetStyle(p2s_t, x_axis, process_tex, version)
-                    ver_short = version.split("ul_")[1].split("_Z")[0]
-                    if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                    plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                        transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+
+                    ver_short = version.split(prefix)[1].split("_Z")[0]
+                    if o_name == 'ZZbbtt': plt.ylim(0.01,500)
                     else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
@@ -661,9 +678,9 @@ if __name__ == "__main__" :
                         limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                             for mass in mass_points]
                         mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {GetCat(category)}", zorder=3, color=cmap(i))
-                    plt.legend(loc='lower right', fontsize=18, frameon=True)
-                    if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                        plt.plot(mass, exp, marker='o', linestyle='--', label = f"{GetCat(category)}", zorder=3, color=cmap(i))
+                    plt.legend(loc='upper right', fontsize=18, frameon=True)
+                    if o_name == 'ZZbbtt': plt.ylim(0.01,500)
                     else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
@@ -743,27 +760,28 @@ if __name__ == "__main__" :
                     continue
 
                 fig, ax = plt.subplots(figsize=(12,10))
-                plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
                 plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                     color = '#FFDF7Fff', label = "68% expected", zorder=2)
                 plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                     color = '#85D1FBff', label = "95% expected", zorder=1)
                 SetStyle(p2s_t, x_axis, process_tex, version)
+                plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                    transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
                 if o_name == 'ZZbbtt': plt.ylim(0.001,100)
                 else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
-                ver_short = version.split("ul_")[1].split("_Z")[0]
+                ver_short = version.split(prefix)[1].split("_Z")[0]
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
                 # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
 
                 cmap = plt.get_cmap('tab10')
                 for i, category in enumerate(categories):
-
                     limit_file_list = [maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/M{mass}/limits.json'
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {GetCat(category)}", zorder=3, color=cmap(i))
-                plt.legend(loc='lower right', fontsize=18, frameon=True)
+                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"{GetCat(category)}", zorder=3, color=cmap(i))
+                plt.legend(loc='upper right', fontsize=18, frameon=True)
                 if o_name == 'ZZbbtt': plt.ylim(0.001,100)
                 else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
@@ -797,7 +815,7 @@ if __name__ == "__main__" :
         # for version in versions:
         #     ver_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/{version}_{feature}_os_iso.txt'
         #     if CheckLimits(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json') and os.path.isfile(ver_file): # check expected
-        #         ver_short = version.split("ul_")[1].split("_Z")[0]
+        #         ver_short = version.split(prefix)[1].split("_Z")[0]
         #         cmd += f' Y{ver_short}={ver_file}'
         #     else:
         #         print(f"## WARNING : comb_years: skipping {version}/{prd}/{feature}/Combination_Cat/M{mass}")
@@ -898,26 +916,41 @@ if __name__ == "__main__" :
                         csvwriter.writerow([mass[i], exp[i], m1s_t[i], p1s_t[i], m2s_t[i], p2s_t[i]])
 
                 fig, ax = plt.subplots(figsize=(12,10))
-                plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+                plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
                 plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                     color = '#FFDF7Fff', label = "68% expected", zorder=2)
                 plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                     color = '#85D1FBff', label = "95% expected", zorder=1)
                 SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
-                if o_name == 'ZZbbtt': plt.ylim(0.001,100)
+                plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                    transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+                if o_name == 'ZZbbtt': plt.ylim(0.01,500) #plt.ylim(0.001,100)
                 else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf')
                 # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
 
+                fig, ax = plt.subplots(figsize=(12,10))
+
                 cmap = plt.get_cmap('tab10')
                 for i, version in enumerate(versions):
-                    ver_short = version.split("ul_")[1].split("_Z")[0]
                     limit_file_list = [maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/limits.json'
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
-                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {ver_short}", zorder=3, color=cmap(i))
-                plt.legend(loc='lower right', fontsize=18, frameon=True)
+                    plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {GetPlotYear(version)}", zorder=3, color=cmap(i))
+                limit_file_list = [maindir + f'/FullRun2_{o_name}/{prd}/{feature}/M{mass}/limits.json' for mass in mass_points]
+                mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
+                plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
+                plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
+                    color = '#FFDF7Fff', label = "68% expected", zorder=2)
+                plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
+                    color = '#85D1FBff', label = "95% expected", zorder=1)
+                SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
+                plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                    transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                if o_name == 'ZZbbtt': plt.ylim(0.01,500) #plt.ylim(0.001,100)
+                else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.pdf')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
                 plt.xscale('log')
@@ -948,14 +981,14 @@ if __name__ == "__main__" :
 
         cmd = f'combineCards.py'
         for version in versions_ZbbHtt:
-            year = version.split("ul_")[1].split("_Z")[0]
+            year = version.split(prefix)[1].split("_Z")[0]
             cat_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/{version}_{feature}_os_iso.txt'
             if not os.path.isfile(cat_file):
                 print("## WARNING : ignoring missing datacard " + cat_file + " in combination")
                 continue
             cmd += f' Y{year}_ZbbHtt={cat_file}'
         for version in versions_ZttHbb:
-            year = version.split("ul_")[1].split("_Z")[0]
+            year = version.split(prefix)[1].split("_Z")[0]
             cat_file = maindir + f'/{version}/{prd}/{feature}/Combination_Cat/M{mass}/{version}_{feature}_os_iso.txt'
             if not os.path.isfile(cat_file):
                 print("## WARNING : ignoring missing datacard " + cat_file + " in combination")
@@ -1013,13 +1046,15 @@ if __name__ == "__main__" :
                 continue
 
             fig, ax = plt.subplots(figsize=(12,10))
-            plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+            plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
             plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                 color = '#FFDF7Fff', label = "68% expected", zorder=2)
             plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                 color = '#85D1FBff', label = "95% expected", zorder=1)
             SetStyle(p2s_t, x_axis, process_tex, "FullRun2 ZHComb")
-            plt.legend(loc='lower right', fontsize=18, frameon=True)
+            plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
+            plt.legend(loc='upper right', fontsize=18, frameon=True)
             plt.ylim(0.01,10000) ; plt.xlim(500,4100)
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb.pdf')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb.png')
@@ -1030,7 +1065,7 @@ if __name__ == "__main__" :
             # versions_ZbbHtt, versions_ZttHbb = split_versions_ZH()
             # for i, (version_ZbbHtt, version_ZttHbb) in enumerate(zip(versions_ZbbHtt, versions_ZttHbb)):
             #     version_comb = version_ZbbHtt.replace("ZbbHtt", "ZHComb")
-            #     short_name = version_ZbbHtt.split("ul_")[1].split("_Z")[0]
+            #     short_name = version_ZbbHtt.split(prefix)[1].split("_Z")[0]
             #     limit_file_list = [maindir + f'/{version_comb}/{prd}/{feature}/M{mass}/limits.json'
             #         for mass in mass_points]
             #     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
@@ -1045,19 +1080,21 @@ if __name__ == "__main__" :
 
             # Overlaying with ZbbHtt / ZttHbb
             fig, ax = plt.subplots(figsize=(12,10))
-            plt.plot(mass, exp, color='k', marker='o', label = "Expected", zorder=3)
+            plt.plot(mass, exp, color='k', marker='o', linestyle='--', label = "Expected", zorder=3)
             plt.fill_between(np.asarray(mass), np.asarray(p1s_t), np.asarray(m1s_t), 
                 color = '#FFDF7Fff', label = "68% expected", zorder=2)
             plt.fill_between(np.asarray(mass), np.asarray(p2s_t), np.asarray(m2s_t), 
                 color = '#85D1FBff', label = "95% expected", zorder=1)
             SetStyle(p2s_t, x_axis, process_tex, "FullRun2 ZHComb")
+            plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
+                transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
             versions_ZbbHtt, versions_ZttHbb = split_versions_ZH()
             for i, (proc, short_name) in enumerate(zip(["ZbbHtt", "ZttHbb"], [r"$Z_{bb}H_{\tau\tau}$", r"$Z_{\tau\tau}H_{bb}$"])):
                 limit_file_list = [maindir + f'/FullRun2_{proc}/{prd}/{feature}/M{mass}/limits.json'
                     for mass in mass_points]
                 mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                 plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {short_name}", zorder=3, color=cmap(i))
-            plt.legend(loc='lower right', fontsize=18, frameon=True)
+            plt.legend(loc='upper right', fontsize=18, frameon=True)
             plt.ylim(0.01,10000) ; plt.xlim(500,4100)
             try:
                 plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb_split_proc.pdf')
@@ -1080,7 +1117,7 @@ if __name__ == "__main__" :
             # run_cmd(f'cp ' + maindir + f'/FullRun2_{o_name}/{prd}/{feature}/*_os_iso.txt TMP_RESULTS_RES')
             # run_cmd(f'cp ' + maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Impacts* TMP_RESULTS_RES')
             for version in versions:
-                ver_short = version.split("ul_")[1].split("_Z")[0]
+                ver_short = version.split(prefix)[1].split("_Z")[0]
                 run_cmd(f'mkdir -p TMP_RESULTS_RES/{ver_short} && cp index.php TMP_RESULTS_RES/{ver_short}')
                 run_cmd(f'cp ' + maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_*.p* TMP_RESULTS_RES/{ver_short}')
                 for category in categories:

@@ -48,14 +48,14 @@ def run_cmd(cmd, run=True, check=True):
 def GetCatShort(category):
     if 'resolved_1b' in category: cat = 'res1b'
     if 'resolved_2b' in category: cat = 'res2b'
-    if 'boosted_bb' in category: cat = 'boosted_bb'
+    if 'boosted_bb' in category or 'boosted_noPNet' in category: cat = 'boosted_bb'
     if 'boostedTau' in category: cat = 'boosted_bb_tautau'
     return cat
 
 def GetCat(category):
     if 'resolved_1b' in category: cat = 'Res 1b'
     if 'resolved_2b' in category: cat = 'Res 2b'
-    if 'boosted_bb' in category: cat = 'Boosted bb'
+    if 'boosted_bb' in category or 'boosted_noPNet' in category: cat = 'Boosted bb'
     if 'boostedTau' in category: cat = 'Boosted bb & $\\tau\\tau$'
     return cat
 
@@ -388,7 +388,7 @@ if __name__ == "__main__" :
         fig = plt.figure(figsize=(10, 10))
         plt.plot(x, y, label='Data', color='red', linewidth=3)
         SetStyle(fig, x, y, GetCat(category), dict_ch_name[ch])
-        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("cat_ZZ_EC90_")[1]
+        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("90_")[1]
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.png")
         plt.savefig(f"{ch_dir}/DeltaNLL_{ver_short}_{cat_short}_{ch}.pdf")
         plt.close()
@@ -526,7 +526,7 @@ if __name__ == "__main__" :
                         plt.legend(loc='upper right', fontsize=18, frameon=True)
                         SetStyle(fig, x, y, GetCat(category), "", 8)
                         WriteResults(fig, x, y, x_stat, y_stat, maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/higgsCombineTest.Significance.mH120.root')
-                        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("cat_ZZ_EC90_")[1]
+                        ver_short = version.split(prefix)[1].split("_Z")[0] ; cat_short = category.split("90_")[1]
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.png')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/DeltaNLL_{ver_short}_{cat_short}.pdf')
                         plt.close()
