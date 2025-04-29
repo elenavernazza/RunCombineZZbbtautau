@@ -159,9 +159,9 @@ if __name__ == "__main__" :
     cmtdir = '/data_CMS/cms/' + options.user_cmt + '/cmt/CreateDatacards/'
     maindir = os.getcwd() + f'/Res{options.num}/'
 
-    if "ZZ" in options.ver:       o_name = 'ZZbbtt'; process_tex = r"$X\rightarrow ZZ$";   x_axis = r"$m_{X}$ [GeV]"; spin = 0
-    elif "ZbbHtt" in options.ver: o_name = 'ZbbHtt'; process_tex = r"$Z'\rightarrow ZH$";  x_axis = r"$m_{Z'}$ [GeV]"; spin = 1 # \rightarrow bb\tau\tau
-    elif "ZttHbb" in options.ver: o_name = 'ZttHbb'; process_tex = r"$Z'\rightarrow ZH$"; x_axis = r"$m_{Z'}$ [GeV]"; spin = 1 # \rightarrow \tau\tau bb
+    if "ZZ" in options.ver:       o_name = 'ZZbbtt'; process_tex = r"$X\rightarrow ZZ$";   x_axis = r"$m_{X}$ [GeV]"; spin = 0; leg_loc = 'upper right' # \rightarrow bb\tau\tau
+    elif "ZbbHtt" in options.ver: o_name = 'ZbbHtt'; process_tex = r"$Z'\rightarrow ZH$";  x_axis = r"$m_{Z'}$ [GeV]"; spin = 1; leg_loc = 'upper left' # \rightarrow bb\tau\tau
+    elif "ZttHbb" in options.ver: o_name = 'ZttHbb'; process_tex = r"$Z'\rightarrow ZH$"; x_axis = r"$m_{Z'}$ [GeV]"; spin = 1; leg_loc = 'upper left' # \rightarrow \tau\tau bb
 
     dict_ch_name = {"etau": "$\\tau_{e}\\tau_{h}$", "mutau": "$\\tau_{\\mu}\\tau_{h}$", "tautau": "$\\tau_{h}\\tau_{h}$"}
 
@@ -244,7 +244,7 @@ if __name__ == "__main__" :
         plt.title("")
         plt.ylim(0.003,5*max(p2s_t))
         plt.grid(True, zorder = 4)
-        plt.legend(loc='upper right', fontsize=18, frameon=True)
+        plt.legend(loc=leg_loc, fontsize=18, frameon=True)
         plt.yscale('log')
         ax = plt.gca()
         ax.set_axisbelow(False)
@@ -557,7 +557,7 @@ if __name__ == "__main__" :
                                 for mass in mass_points]
                             mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                             plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {dict_ch_name[channel]}", zorder=3, color=cmap(i))
-                        plt.legend(loc='upper right', fontsize=18, frameon=True)
+                        plt.legend(loc=leg_loc, fontsize=18, frameon=True)
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.pdf')
                         plt.savefig(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
                         # print(maindir + f'/{version}/{prd}/{feature}/{category}/Combination_Ch/Limits_{ver_short}_{cat_short}_split.png')
@@ -658,7 +658,7 @@ if __name__ == "__main__" :
 
                     ver_short = version.split(prefix)[1].split("_Z")[0]
                     if o_name == 'ZZbbtt': plt.ylim(0.01,500)
-                    else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                    else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
                     # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
@@ -679,9 +679,9 @@ if __name__ == "__main__" :
                             for mass in mass_points]
                         mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                         plt.plot(mass, exp, marker='o', linestyle='--', label = f"{GetCat(category)}", zorder=3, color=cmap(i))
-                    plt.legend(loc='upper right', fontsize=18, frameon=True)
+                    plt.legend(loc=leg_loc, fontsize=18, frameon=True)
                     if o_name == 'ZZbbtt': plt.ylim(0.01,500)
-                    else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                    else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
                     plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
                     plt.xscale('log')
@@ -769,7 +769,7 @@ if __name__ == "__main__" :
                 plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
                     transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
                 if o_name == 'ZZbbtt': plt.ylim(0.001,100)
-                else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                 ver_short = version.split(prefix)[1].split("_Z")[0]
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.pdf')
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
@@ -781,9 +781,9 @@ if __name__ == "__main__" :
                         for mass in mass_points]
                     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                     plt.plot(mass, exp, marker='o', linestyle='--', label = f"{GetCat(category)}", zorder=3, color=cmap(i))
-                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                plt.legend(loc=leg_loc, fontsize=18, frameon=True)
                 if o_name == 'ZZbbtt': plt.ylim(0.001,100)
-                else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.pdf')
                 plt.savefig(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
                 # print(maindir + f'/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}_split.png')
@@ -925,7 +925,7 @@ if __name__ == "__main__" :
                 plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
                     transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
                 if o_name == 'ZZbbtt': plt.ylim(0.01,500) #plt.ylim(0.001,100)
-                else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.pdf')
                 # print(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}.png')
@@ -948,9 +948,9 @@ if __name__ == "__main__" :
                 SetStyle(p2s_t, x_axis, process_tex, "FullRun2")
                 plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
                     transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
-                plt.legend(loc='upper right', fontsize=18, frameon=True)
+                plt.legend(loc=leg_loc, fontsize=18, frameon=True)
                 if o_name == 'ZZbbtt': plt.ylim(0.01,500) #plt.ylim(0.001,100)
-                else:                  plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+                else:                  plt.ylim(0.01,10)# ; plt.xlim(500,6100)
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.pdf')
                 plt.savefig(maindir + f'/FullRun2_{o_name}/{prd}/{feature}/Limits_FullRun2_{o_name}_split.png')
                 plt.xscale('log')
@@ -1054,8 +1054,8 @@ if __name__ == "__main__" :
             SetStyle(p2s_t, x_axis, process_tex, "FullRun2 ZHComb")
             plt.text(0.97, 0.03, f"Spin {spin}\nNarrow Width Approximation", fontsize=18, ha="right", va="bottom", 
                 transform=plt.gca().transAxes, color="black", bbox=dict(facecolor='white', alpha=0.5, edgecolor='none'))
-            plt.legend(loc='upper right', fontsize=18, frameon=True)
-            plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+            plt.legend(loc=leg_loc, fontsize=18, frameon=True)
+            plt.ylim(0.01,10)# ; plt.xlim(500,6100)
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb.pdf')
             plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb.png')
             # print(maindir + f'/Res/{version}/{prd}/{feature}/Combination_Cat/Limits_{ver_short}.png')
@@ -1070,7 +1070,7 @@ if __name__ == "__main__" :
             #         for mass in mass_points]
             #     mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
             #     plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {short_name}", zorder=3, color=cmap(i))
-            # plt.legend(loc='upper right', fontsize=18, frameon=True)
+            # plt.legend(loc=leg_loc, fontsize=18, frameon=True)
             # try:
             #     plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb_split.pdf')
             #     plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb_split.png')
@@ -1094,8 +1094,8 @@ if __name__ == "__main__" :
                     for mass in mass_points]
                 mass, exp, m1s_t, p1s_t, m2s_t, p2s_t = GetLimits(limit_file_list)
                 plt.plot(mass, exp, marker='o', linestyle='--', label = f"Expected {short_name}", zorder=3, color=cmap(i))
-            plt.legend(loc='upper right', fontsize=18, frameon=True)
-            plt.ylim(0.01,10000) ; plt.xlim(500,4100)
+            plt.legend(loc=leg_loc, fontsize=18, frameon=True)
+            plt.ylim(0.01,10)# ; plt.xlim(500,6100)
             try:
                 plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb_split_proc.pdf')
                 plt.savefig(maindir + f'/FullRun2_ZHComb/{prd}/{feature}/Limits_FullRun2_ZHComb_split_proc.png')
